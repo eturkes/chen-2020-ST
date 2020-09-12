@@ -1,0 +1,11 @@
+.git
+R
+assets
+chen-2020-ST.bib
+chen-2020-ST.Rproj
+COPYING
+docker-compose.yml
+.gitignore
+README.md
+results
+singularity.sh
