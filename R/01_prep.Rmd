@@ -1,0 +1,124 @@
+---
+title: "01 Prep"
+author:
+  - name: "Emir Turkes [emir.turkes@eturkes.com]"
+  - name: "UK Dementia Research Institute at UCL"
+date: '`r strftime(Sys.time(), "%B %d, %Y")`'
+bibliography: "../chen-2020-ST.bib"
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(
+    "..", "results", "01-prep.html"
+  ))})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {
+  font-size: 0.95em; padding-left: 35px; text-indent: 0;
+}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [chen-2020-ST](https://github.com/eturkes/chen-2020-ST).*
+*Please email for access.*
+
+In this document we prepare the gene count matrix for downstream analysis.
+The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be referenced using the name ``r unlist(strsplit(getwd(), "/"))[4]``.
+
+```{r}
+# Some standard boilerplate.
+# --------------------------
+#    This file is part of chen-2020-ST.
+#    Copyright (C) 2019-2020  Emir Turkes, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# This section should be checked per document.
+# --------------------------------------------
+packages <- c("Giotto", "data.table")
+invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
+
+setDTthreads(0)
+instrs <- createGiottoInstructions("/usr/bin/python3")
+analysis_no <- 1
+# --------------------------------------------
+
+# Everything else in this chunk remains generally unchanged.
+# ----------------------------------------------------------
+data_name <- unlist(strsplit(getwd(), "/"))[4] # Name of dataset.
+assets_dir <- file.path("..", "assets") # Backed up data.
+
+cache_dir <- file.path("..", "tmp", "cache")
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7)
+# ----------------------------------------------------------
+# --------------------------
+```
+
+# Cleaning
+
+```{r}
+counts <- t(fread(file.path(assets_dir, "data", "raw_counts.txt")))
+colnames(counts) <- counts[1, ]
+counts <- counts[-1, ]
+counts <- Matrix::Matrix(counts, sparse = TRUE)
+
+meta <- read.delim(file.path(assets_dir, "data", "spot_metadata.tsv"))
+meta <- meta[meta$Spot %in% colnames(counts), ]
+counts <- counts[ , colnames(counts) %in% meta$Spot]
+meta <- meta[match(colnames(counts), meta$Spot), ]
+
+meta_sub <- meta[ , c(1, 12, 15:18)]
+meta_sub$Region_equalsize <- ifelse(meta_sub$Region_equalsize == "", 0, 1)
+colnames(meta_sub) = c("barcode", "in_tissue", "array_row", "array_col", "col_pxl", "row_pxl")
+
+full_set <- createGiottoObject(
+  counts, meta_sub[ , 5:6], cell_metadata = meta_sub[ , 2:4],
+  instructions = instrs, cores = getDTthreads()
+)
+rm(counts)
+gc()
+```
+
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
