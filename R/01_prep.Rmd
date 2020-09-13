@@ -67,11 +67,10 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 
 # This section should be checked per document.
 # --------------------------------------------
-packages <- c("Giotto", "data.table")
+packages <- c("data.table", "DropletUtils", "Seurat")
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 
 setDTthreads(0)
-instrs <- createGiottoInstructions("/usr/bin/python3")
 analysis_no <- 1
 # --------------------------------------------
 
@@ -96,6 +95,7 @@ knitr::opts_chunk$set(fig.width = 10, fig.height = 7)
 counts <- t(fread(file.path(assets_dir, "data", "raw_counts.txt")))
 colnames(counts) <- counts[1, ]
 counts <- counts[-1, ]
+counts <- counts[complete.cases(counts), ]
 counts <- Matrix::Matrix(counts, sparse = TRUE)
 
 meta <- read.delim(file.path(assets_dir, "data", "spot_metadata.tsv"))
@@ -103,16 +103,57 @@ meta <- meta[meta$Spot %in% colnames(counts), ]
 counts <- counts[ , colnames(counts) %in% meta$Spot]
 meta <- meta[match(colnames(counts), meta$Spot), ]
 
-meta_sub <- meta[ , c(1, 12, 15:18)]
-meta_sub$Region_equalsize <- ifelse(meta_sub$Region_equalsize == "", 0, 1)
-colnames(meta_sub) = c("barcode", "in_tissue", "array_row", "array_col", "col_pxl", "row_pxl")
-
-full_set <- createGiottoObject(
-  counts, meta_sub[ , 5:6], cell_metadata = meta_sub[ , 2:4],
-  instructions = instrs, cores = getDTthreads()
-)
-rm(counts)
 gc()
+```
+
+# B02_D1
+
+```{r}
+sub_name <- "B02_D1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+B02_D1_counts <- counts[ , colnames(counts) %in% keep]
+B02_D1_meta <- meta[meta$Spot %in% colnames(B02_D1_counts), ]
+
+tissue_positions_list <- B02_D1_meta[ , c(1, 12, 15:18)]
+tissue_positions_list$Region_equalsize <- ifelse(
+  tissue_positions_list$Region_equalsize == "", 0, 1
+)
+
+if (
+  !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"),
+    B02_D1_counts,
+    type = "sparse",
+    version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name,
+      "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+    ),
+    B02_D1,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(
+      assets_dir, "data", sub_name,
+      "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
+    ),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(
+  file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix")
+)
 ```
 
 # References
