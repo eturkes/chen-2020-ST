@@ -20,28 +20,18 @@ FROM rocker/rstudio:4.0.2
 
 LABEL maintainer="Emir Turkes emir.turkes@eturkes.com"
 
-COPY .Renviron /root/
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        python3-pip \
-        libtcl8.6 \
-        libtk8.6 \
-        libgsl23 \
-    && pip3 install \
-        pandas \
-        python-igraph \
-        networkx \
-        python-louvain \
-        leidenalg \
-        scikit-learn \
-        smfishHmrf \
+        zlib1g-dev \
+        libxml2 \
+        libglpk40 \
     && Rscript \
         -e "install.packages('conflicted')" \
         -e "install.packages('rmarkdown')" \
         -e "install.packages('rprojroot')" \
-        -e "install.packages('devtools')" \
-        -e "devtools::install_github('RubD/Giotto')" \
+        -e "install.packages('Seurat')" \
+        -e "install.packages('BiocManager')" \
+        -e "BiocManager::install('DropletUtils')" \
     && apt-get clean \
     && rm -Rf \
         /var/lib/apt/lists/ \
