@@ -67,8 +67,9 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 
 # This section should be checked per document.
 # --------------------------------------------
-packages <- c("data.table", "DropletUtils", "Seurat")
+packages <- c("data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel")
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
+source("utils.R")
 
 setDTthreads(0)
 analysis_no <- 1
@@ -79,7 +80,7 @@ analysis_no <- 1
 data_name <- unlist(strsplit(getwd(), "/"))[4] # Name of dataset.
 assets_dir <- file.path("..", "assets") # Backed up data.
 
-cache_dir <- file.path("..", "tmp", "cache")
+cache_dir <- file.path("..", "tmp", "cache", paste0("0", analysis_no))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
@@ -92,18 +93,27 @@ knitr::opts_chunk$set(fig.width = 10, fig.height = 7)
 # Cleaning
 
 ```{r}
-counts <- t(fread(file.path(assets_dir, "data", "raw_counts.txt")))
-colnames(counts) <- counts[1, ]
-counts <- counts[-1, ]
-counts <- counts[complete.cases(counts), ]
-counts <- Matrix::Matrix(counts, sparse = TRUE)
-
 meta <- read.delim(file.path(assets_dir, "data", "spot_metadata.tsv"))
-meta <- meta[meta$Spot %in% colnames(counts), ]
-counts <- counts[ , colnames(counts) %in% meta$Spot]
-meta <- meta[match(colnames(counts), meta$Spot), ]
 
-gc()
+rds <- file.path(cache_dir, "counts.rds")
+if (file.exists(rds)) {
+  counts <- readRDS(rds)
+} else {
+  counts <- t(fread(file.path(assets_dir, "data", "raw_counts.txt")))
+  colnames(counts) <- counts[1, ]
+  counts <- counts[-1, ]
+  counts <- counts[complete.cases(counts), ]
+  counts <- Matrix::Matrix(counts, sparse = TRUE)
+
+  meta <- meta[meta$Spot %in% colnames(counts), ]
+  counts <- counts[ , colnames(counts) %in% meta$Spot]
+
+  saveRDS(counts, rds)
+  gc()
+}
+
+meta <- meta[meta$Spot %in% colnames(counts), ]
+meta <- meta[match(colnames(counts), meta$Spot), ]
 ```
 
 # B02_D1
@@ -116,23 +126,18 @@ B02_D1_counts <- counts[ , colnames(counts) %in% keep]
 B02_D1_meta <- meta[meta$Spot %in% colnames(B02_D1_counts), ]
 
 tissue_positions_list <- B02_D1_meta[ , c(1, 12, 15:18)]
-tissue_positions_list$Region_equalsize <- ifelse(
-  tissue_positions_list$Region_equalsize == "", 0, 1
-)
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
 
 if (
   !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
 ) {
   write10xCounts(
-    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"),
-    B02_D1_counts,
-    type = "sparse",
-    version = "3"
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), B02_D1_counts,
+    type = "sparse", version = "3"
   )
   write10xCounts(
     file.path(
-      assets_dir, "data", sub_name,
-      "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
     ),
     B02_D1,
     type = "HDF5",
@@ -141,8 +146,7 @@ if (
   write.table(
     tissue_positions_list,
     file.path(
-      assets_dir, "data", sub_name,
-      "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
     ),
     quote = FALSE,
     row.names = FALSE,
@@ -151,8 +155,87 @@ if (
   )
 }
 
-seurat <- Load10X_Spatial(
-  file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix")
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(object = seurat, idents = c(0:5)),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
