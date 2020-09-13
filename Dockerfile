@@ -26,6 +26,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3-pip \
         libtcl8.6 \
+        libtk8.6 \
         libgsl23 \
     && pip3 install \
         pandas \
