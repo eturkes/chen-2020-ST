@@ -26,12 +26,16 @@ RUN apt-get update \
         libxml2 \
         libglpk40 \
         libhdf5-dev \
+        libgdal26 \
+        libproj15 \
+        libudunits2-0 \
     && Rscript \
         -e "install.packages('conflicted')" \
         -e "install.packages('rmarkdown')" \
         -e "install.packages('rprojroot')" \
         -e "install.packages('Seurat')" \
         -e "install.packages('hdf5r')" \
+        -e "install.packages('spdep')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('DropletUtils')" \
     && apt-get clean \

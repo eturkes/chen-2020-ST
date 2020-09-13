@@ -67,7 +67,9 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 
 # This section should be checked per document.
 # --------------------------------------------
-packages <- c("data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel")
+packages <- c(
+  "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep"
+)
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 source("utils.R")
 
@@ -125,7 +127,18 @@ keep <- meta[meta$SampleID == sub_name, 1]
 B02_D1_counts <- counts[ , colnames(counts) %in% keep]
 B02_D1_meta <- meta[meta$Spot %in% colnames(B02_D1_counts), ]
 
-tissue_positions_list <- B02_D1_meta[ , c(1, 12, 15:18)]
+coords <- B02_D1_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(B02_D1_meta[ , c(1, 12)], coords_rot)
+
+coords <- B02_D1_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] - 2407.203)
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] - 726.5029)
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
 tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
 
 if (
@@ -146,7 +159,7 @@ if (
   write.table(
     tissue_positions_list,
     file.path(
-      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
+    assets_dir, "data", sub_name, "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
     ),
     quote = FALSE,
     row.names = FALSE,
