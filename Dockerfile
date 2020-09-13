@@ -25,11 +25,13 @@ RUN apt-get update \
         zlib1g-dev \
         libxml2 \
         libglpk40 \
+        libhdf5-dev \
     && Rscript \
         -e "install.packages('conflicted')" \
         -e "install.packages('rmarkdown')" \
         -e "install.packages('rprojroot')" \
         -e "install.packages('Seurat')" \
+        -e "install.packages('hdf5r')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('DropletUtils')" \
     && apt-get clean \
