@@ -38,6 +38,7 @@ RUN apt-get update \
         -e "install.packages('spdep')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('DropletUtils')" \
+        -e "BiocManager::install('ComplexHeatmap')" \
     && apt-get clean \
     && rm -Rf \
         /var/lib/apt/lists/ \

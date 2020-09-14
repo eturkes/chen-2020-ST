@@ -68,11 +68,13 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 # This section should be checked per document.
 # --------------------------------------------
 packages <- c(
-  "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep"
+  "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep",
+  "ComplexHeatmap"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 source("utils.R")
 
+`%notin%` <- Negate(`%in%`)
 setDTthreads(0)
 analysis_no <- 1
 # --------------------------------------------
@@ -185,7 +187,7 @@ SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
 seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
-seurat <- FindClusters(seurat, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
 seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
 
 add_df <- data.frame(Embeddings(seurat, "umap"))
@@ -197,8 +199,7 @@ red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
 SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
 
 SpatialPlot(
-  seurat, cells.highlight = CellsByIdentities(object = seurat, idents = c(0:5)),
-  facet.highlight = TRUE, pt.size.factor = 3.5
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
 )
 ```
 
@@ -250,6 +251,51 @@ SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
 # References
