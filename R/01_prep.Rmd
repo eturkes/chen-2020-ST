@@ -84,7 +84,7 @@ organism <- "mmusculus"
 analysis_no <- 1
 # --------------------------------------------
 
-# Everything else in this chunk remains generally unchanged.
+# Everything else in this chunk generally remains unchanged.
 # ----------------------------------------------------------
 data_name <- unlist(strsplit(getwd(), "/"))[4] # Name of dataset.
 assets_dir <- file.path("..", "assets") # Backed up data.
@@ -406,8 +406,6 @@ pipeline_name <- "sctransform"
 seurat_sub <- cluster_pipeline(seurat_sub, cache_dir, pipeline_name, protocol, NULL, NULL, cc = FALSE)
 seurat_sub
 
-# Create MDS plots to identify potential confounders and latent factors.
-# ----------------------------------------------------------------------
 rds <- file.path(cache_dir, paste0(sub_name, "_d.rds"))
 if (file.exists(rds)) {
   d <- readRDS(rds)
@@ -561,6 +559,7 @@ Heatmap(
   show_column_names = FALSE
 )
 ```
+
 ```{r}
 SpatialPlot(
   seurat,
