@@ -69,7 +69,7 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 # --------------------------------------------
 packages <- c(
   "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep",
-  "ComplexHeatmap", "future", "GSVA", "GSEABase", "biomaRt", "limma", "DT"
+  "ComplexHeatmap", "future", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 source("utils.R")
@@ -123,35 +123,6 @@ if (file.exists(rds)) {
 
 meta <- meta[meta$Spot %in% colnames(counts), ]
 meta <- meta[match(colnames(counts), meta$Spot), ]
-
-rds <- file.path(cache_dir, "gene_sets.rds")
-rds2 <- file.path(cache_dir, "gene_sets_filtered.rds")
-if (file.exists(rds) & file.exists(rds2)) {
-  gene_sets <- readRDS(rds)
-  gene_sets_filtered <- readRDS(rds2)
-} else {
-  gene_sets <- getGmt(file.path(assets_dir, "gene-sets", paste0(organism, ".", "GO.comb.ENSG.gmt")))
-  gene_sets <- filterGeneSets(gene_sets, 3, 500)
-  gene_sets_filtered <- gene_sets # Put aside for further filtering later.
-  for (i in seq(length(gene_sets@.Data))) {
-    go_id <- gene_sets[[i]]@setName
-    suppressWarnings(gene_sets[[i]]@setName <- gene_sets[[i]]@shortDescription)
-    suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
-  }
-
-  filter_sets <- read.delim(file.path(assets_dir, "gene-sets", "genes-09-00593-s001-s5.tsv"))
-  filter_sets <- filter_sets$GO.TERM
-  gene_sets_filtered <- gene_sets_filtered[names(gene_sets_filtered) %in% filter_sets]
-  for (i in seq(length(gene_sets_filtered@.Data))) {
-    go_id <- gene_sets_filtered[[i]]@setName
-    suppressWarnings(gene_sets_filtered[[i]]@setName <- gene_sets_filtered[[i]]@shortDescription)
-    suppressWarnings(gene_sets_filtered[[i]]@shortDescription <- go_id)
-  }
-
-  saveRDS(gene_sets, rds)
-  saveRDS(gene_sets_filtered, rds2)
-}
-gene_sets
 ```
 
 # B02_D1
@@ -160,19 +131,23 @@ gene_sets
 sub_name <- "B02_D1"
 
 keep <- meta[meta$SampleID == sub_name, 1]
-B02_D1_counts <- counts[ , colnames(counts) %in% keep]
-B02_D1_meta <- meta[meta$Spot %in% colnames(B02_D1_counts), ]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
 
-coords <- B02_D1_meta[ , c(15, 16)]
+coords <- sample_meta[ , c(15, 16)]
 coords_rot <- Rotation(coords, pi)
 coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
 coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
-tissue_positions_list <- cbind(B02_D1_meta[ , c(1, 12)], coords_rot)
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
 
-coords <- B02_D1_meta[ , c(17, 18)]
+coords <- sample_meta[ , c(17, 18)]
 coords_rot <- Rotation(coords, pi)
-coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] - 2407.203)
-coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] - 726.5029)
+orig_dim1 <- 10763
+orig_dim2 <- 10000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
 tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
 
 tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
@@ -181,22 +156,20 @@ if (
   !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
 ) {
   write10xCounts(
-    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), B02_D1_counts,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
     type = "sparse", version = "3"
   )
   write10xCounts(
     file.path(
       assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
     ),
-    B02_D1,
+    sample_counts,
     type = "HDF5",
     version = "3"
   )
   write.table(
     tissue_positions_list,
-    file.path(
-    assets_dir, "data", sub_name, "raw_feature_bc_matrix", "spatial", "tissue_positions_list.csv"
-    ),
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
     quote = FALSE,
     row.names = FALSE,
     col.names = FALSE,
@@ -334,240 +307,2718 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-## Differential Expression
+# B03_D2
 
 ```{r}
-seurat_sub <- subset(seurat, idents = ident_names)
+sub_name <- "B03_D2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10619
+orig_dim2 <- 10000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+  abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+  abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+  !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+    ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
 SpatialPlot(
-    seurat_sub, cells.highlight = CellsByIdentities(seurat_sub, ident_names),
-    facet.highlight = TRUE, pt.size.factor = 3.5
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
 )
-
-DefaultAssay(seurat_sub) <- "Spatial"
-seurat_sub[["SCT"]] <- NULL
-seurat_sub <- seurat_sub[rowSums(as.matrix(GetAssayData(seurat_sub, slot = "counts")) > 0) >= 10, ]
-
-mart <- useEnsembl(
-  "ensembl", paste0(organism, "_gene_ensembl"), host = "http://useast.ensembl.org/"
-)
-attributes <- c("external_gene_name", "ensembl_gene_id", "chromosome_name")
-gene_anno <- getBM(attributes, "external_gene_name", rownames(seurat_sub), mart)
-gene_anno <- gene_anno[gene_anno$chromosome_name %in% c(1:22), ]
-gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
-
-tmp <- lapply(
-  geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), gene_anno$ensembl_gene_id
-)
-tmp <- filterGeneSets(tmp, 3, 500)
-gene_sets <- gene_sets[names(gene_sets) %in% names(tmp)]
-
-gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
-
-dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
-if (nrow(dup) > 0) {
-  for (i in 1:dim(dup)[1]) {
-    for (j in 1:dim(gene_anno)[1]) {
-      if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
-        gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
-      }
-    }
-  }
-  if (any(duplicated(gene_anno$external_gene_name))) {
-    stop("Duplicates in gene_anno.")
-  }
-  seurat_sub <- seurat_sub[rownames(seurat_sub) %in% gene_anno$external_gene_name, ]
-  new_mat <- GetAssayData(seurat_sub, "counts")
-  for (i in 1:dim(dup)[1]) {
-    for (j in 1:dim(seurat_sub)[1]) {
-      if (dup$external_gene_name[i] == rownames(seurat_sub)[j]) {
-        new_row <- GetAssayData(seurat_sub[j, ], "counts")
-        rownames(new_row) <- paste0(rownames(new_row), "-alt")
-        if (rownames(new_row) %in% rownames(new_mat)) {
-          rownames(new_row) <- paste0(rownames(new_row), "2")
-        }
-        new_mat <- rbind(new_mat, new_row)
-      }
-    }
-  }
-} else {
-  seurat_sub <- seurat_sub[rownames(seurat_sub) %in% gene_anno$external_gene_name, ]
-  new_mat <- GetAssayData(seurat_sub, "counts")
-}
-gene_anno <- gene_anno[gene_anno$external_gene_name %in% rownames(new_mat), ]
-gene_anno <- gene_anno[order(match(gene_anno$external_gene_name, rownames(new_mat))), ]
-rownames(new_mat) <- gene_anno$ensembl_gene_id
-
-seurat_sub <- CreateSeuratObject(new_mat, meta.data = seurat_sub[[]])
-rm(new_mat)
-seurat_sub$idents <- idents[which(idents != "NA")]
-seurat_sub@active.ident <- seurat_sub$idents
-
-pipeline_name <- "sctransform"
-seurat_sub <- cluster_pipeline(seurat_sub, cache_dir, pipeline_name, protocol, NULL, NULL, cc = FALSE)
-seurat_sub
-
-rds <- file.path(cache_dir, paste0(sub_name, "_d.rds"))
-if (file.exists(rds)) {
-  d <- readRDS(rds)
-} else {
-  d <- dist(t(GetAssayData(seurat_sub, "scale.data")))
-  saveRDS(d, rds)
-}
-mds <- cmdscale(d, 2)
-colnames(mds) <- paste0("mds_", 1:2)
-seurat_sub[["mds"]] <- CreateDimReducObject(mds, key = "mds_", assay = DefaultAssay(seurat_sub))
-rm(mds)
-add_df <- data.frame(Embeddings(seurat_sub, "mds"))
-names(add_df) <- paste0("mds", seq(ncol(add_df)))
-seurat_sub$mds1 <- add_df$mds1
-seurat_sub$mds2 <- add_df$mds2
-
-red_dim_plot(seurat_sub, "umap1", "umap2", "idents", "cat")
-red_dim_plot(seurat_sub, "mds1", "mds2", "idents", "cat")
-
-rds <- file.path(cache_dir, paste0(sub_name, "_gsva.rds"))
-if (file.exists(rds)) {
-  gsva <- readRDS(rds)
-} else {
-  gsva <- gsva(as.matrix(GetAssayData(seurat_sub)), gene_sets, method = "ssgsea")
-  saveRDS(gsva, rds)
-}
-
-umap <- as.matrix(data.frame(seurat_sub$umap1, seurat_sub$umap2))
-colnames(umap) <- paste0("umap_", 1:2)
-seurat_sub[["umap"]] <- CreateDimReducObject(umap, key = "umap_", assay = DefaultAssay(seurat_sub))
-rm(umap)
-
-seurat_sub$idents <- droplevels(seurat_sub$idents)
-seurat_sub$idents <- factor(gsub(" ", "_", seurat_sub$idents))
-
-design <- model.matrix(~ 0 + seurat_sub$idents)
-colnames(design) <- c("CA1_Wfs1", "CA3_Bok", "EC_Reln", "EC_Rorb")
-fit <- lmFit(gsva, design)
-contrast_mat <- makeContrasts(
-  EC_Reln-CA3_Bok, EC_Rorb-CA3_Bok, CA1_Wfs1-CA3_Bok,
-  EC_Rorb-CA1_Wfs1, EC_Reln-CA1_Wfs1, levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE)
-tests <- decideTests(cont_fit, "nestedF", p.value = 0.05, adjust.method = "none")
-tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1 & tests[ , 3] == 1, ]
-discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
-if (length(discard) > 0) {
-  tests_up <- tests_up[-discard, ]
-}
-tests_down <- tests[tests[ , 1] == -1 & tests[ , 2] == -1 & tests[ , 3] == -1, ]
-discard <- which(rownames(tests_down) %in% rownames(tests_down[rowSums(tests_down == 1) > 0, ]))
-if (length(discard) > 0) {
-  tests_down <- tests_down[-discard, ]
-}
-results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
-
-up <- results[rownames(results) %in% rownames(tests_up), ]
-down <- results[rownames(results) %in% rownames(tests_down), ]
-all <- rbind(up, down)
-if (length(all) > 0) {
-  all <- all[order(-all$B), ]
-}
-gsva_list <- list(all, up, down)
-names(gsva_list) <- c(
-  "All DE", paste0("Upregulated in EC_Reln"),
-  paste0("Downregulated in EC_Reln")
-)
-
-fit <- lmFit(GetAssayData(seurat_sub), design)
-contrast_mat <- makeContrasts(
-  EC_Reln-CA3_Bok, EC_Rorb-CA3_Bok, CA1_Wfs1-CA3_Bok,
-  EC_Rorb-CA1_Wfs1, EC_Reln-CA1_Wfs1, levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE)
-tests <- decideTests(cont_fit, "nestedF", p.value = 0.05, adjust.method = "none")
-tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1 & tests[ , 3] == 1, ]
-discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
-if (length(discard) > 0) {
-  tests_up <- tests_up[-discard, ]
-}
-tests_down <- tests[tests[ , 1] == -1 & tests[ , 2] == -1 & tests[ , 3] == -1, ]
-discard <- which(rownames(tests_down) %in% rownames(tests_down[rowSums(tests_down == 1) > 0, ]))
-if (length(discard) > 0) {
-  tests_down <- tests_down[-discard, ]
-}
-results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
-
-up <- results[rownames(results) %in% rownames(tests_up), ]
-down <- results[rownames(results) %in% rownames(tests_down), ]
-all <- rbind(up, down)
-if (length(all) > 0) {
-  all <- all[order(-all$B), ]
-}
-markers_list <- list(all, up, down)
-
-genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list[[2]]), ]
-genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list[[2]]))), ]
-up <- markers_list[[2]]
-rownames(up) <- genes$external_gene_name
-
-genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list[[3]]), ]
-genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list[[3]]))), ]
-down <- markers_list[[3]]
-rownames(down) <- genes$external_gene_name
-
-all <- rbind(up, down)
-all <- all[order(-all$B), ]
-markers_list_symbols <- list(all, up, down)
 ```
 
-**EC_Reln Upregulated GO Terms**
+## Spatially Variable Genes
 
 ```{r}
-datatable_download_exp(gsva_list[[2]])
-```
-
-**EC_Reln Downregulated GO Terms**
-
-```{r}
-datatable_download_exp(gsva_list[[3]])
-```
-
-**EC_Reln Upregulated Genes**
-
-```{r}
-datatable_download_exp(markers_list_symbols[[2]])
-```
-
-**EC_Reln Downregulated Genes**
-
-```{r}
-datatable_download_exp(markers_list_symbols[[3]])
-```
-
-```{r, fig.width = 20}
-idents_ordered <- c(
-  grep("EC_Reln", seurat_sub$idents), grep("EC_Rorb", seurat_sub$idents),
-  grep("CA1_Wfs1", seurat_sub$idents), grep("CA3_Bok", seurat_sub$idents))
-gsva_ordered <- gsva[ , idents_ordered]
-
-mat <- gsva_ordered[rownames(gsva_ordered) %in% rownames(gsva_list[[2]]), ]
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))), cluster_columns = FALSE,
-  cluster_rows = FALSE, row_names_max_width = max_text_width(rownames(mat)),
-  show_column_names = FALSE
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
 )
-mat <- gsva_ordered[rownames(gsva_ordered) %in% rownames(gsva_list[[3]]), ]
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))), cluster_columns = FALSE,
-  cluster_rows = FALSE, row_names_max_width = max_text_width(rownames(mat)),
-  show_column_names = FALSE
-)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
+## Allen Mapping
+
 ```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
-  seurat,
-  features = c(
-    rownames(markers_list_symbols[[2]])[1], rownames(markers_list_symbols[[3]])[1], "Gpc1", "Usp7"
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B02_E1
+
+```{r}
+sub_name <- "B02_E1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10663
+orig_dim2 <- 10000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+  abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+  abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+  !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+    ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B03_C2
+
+```{r}
+sub_name <- "B03_C2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10598
+orig_dim2 <- 10000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+  abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+  abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+  !dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+    ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N02_D1
+
+```{r}
+sub_name <- "N02_D1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 9019
+orig_dim2 <- 8500
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+    ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N03_D2
+
+```{r}
+sub_name <- "N03_D2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10768
+orig_dim2 <- 10128
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
   ),
-  pt.size.factor = 3.5
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
 )
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N02_C1
+
+```{r}
+sub_name <- "N02_C1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 8752
+orig_dim2 <- 8208
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N03_C2
+
+```{r}
+sub_name <- "N03_C2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10768
+orig_dim2 <- 10080
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B04_D1
+
+```{r}
+sub_name <- "B04_D1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10752
+orig_dim2 <- 10101
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B05_D2
+
+```{r}
+sub_name <- "B05_D2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 9507
+orig_dim2 <- 9000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B04_E1
+
+```{r}
+sub_name <- "B04_E1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 10777
+orig_dim2 <- 10141
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# B05_E2
+
+```{r}
+sub_name <- "B05_E2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 9552
+orig_dim2 <- 9000
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N04_D1
+
+```{r}
+sub_name <- "N04_D1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords)
+
+coords <- sample_meta[ , c(17, 18)]
+orig_dim1 <- 8384
+orig_dim2 <- 7920
+tissue_positions_list <- cbind(tissue_positions_list, coords)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N05_D2
+
+```{r}
+sub_name <- "N05_D2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 9120
+orig_dim2 <- 8528
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N04_E1
+
+```{r}
+sub_name <- "N04_E1"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords)
+
+coords <- sample_meta[ , c(17, 18)]
+orig_dim1 <- 8400
+orig_dim2 <- 7936
+tissue_positions_list <- cbind(tissue_positions_list, coords)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+# N05_C2
+
+```{r}
+sub_name <- "N05_C2"
+
+keep <- meta[meta$SampleID == sub_name, 1]
+sample_counts <- counts[ , colnames(counts) %in% keep]
+sample_meta <- meta[meta$Spot %in% colnames(sample_counts), ]
+
+coords <- sample_meta[ , c(15, 16)]
+coords_rot <- Rotation(coords, pi)
+coords_rot[ , 1] <- coords_rot[ , 1] + abs(range(coords_rot[ , 1])[1] + range(coords_rot[ , 1])[2])
+coords_rot[ , 2] <- coords_rot[ , 2] + abs(range(coords_rot[ , 2])[1] + range(coords_rot[ , 2])[2])
+tissue_positions_list <- cbind(sample_meta[ , c(1, 12)], coords_rot)
+
+coords <- sample_meta[ , c(17, 18)]
+coords_rot <- Rotation(coords, pi)
+orig_dim1 <- 8064
+orig_dim2 <- 7632
+coords_rot[ , 1] <- coords_rot[ , 1] +
+abs(range(coords_rot[ , 1])[1] - (orig_dim1 - range(coords[ , 1])[2]))
+coords_rot[ , 2] <- coords_rot[ , 2] +
+abs(range(coords_rot[ , 2])[1] - (orig_dim2 - range(coords[ , 2])[2]))
+tissue_positions_list <- cbind(tissue_positions_list, coords_rot)
+
+tissue_positions_list$Region_equalsize <- ifelse(tissue_positions_list$Region_equalsize == "", 1, 1)
+
+if (
+!dir.exists(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+) {
+  write10xCounts(
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"), sample_counts,
+    type = "sparse", version = "3"
+  )
+  write10xCounts(
+    file.path(
+      assets_dir, "data", sub_name, "raw_feature_bc_matrix", "filtered_feature_bc_matrix.h5"
+  ),
+    sample_counts,
+    type = "HDF5",
+    version = "3"
+  )
+  write.table(
+    tissue_positions_list,
+    file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix", "tissue_positions_list.csv"),
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = FALSE,
+    sep = ","
+  )
+}
+
+seurat <- Load10X_Spatial(file.path(assets_dir, "data", sub_name, "raw_feature_bc_matrix"))
+SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
+  theme(legend.position = "right")
+```
+
+## QC
+
+```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
+SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
+```
+
+## Clustering
+
+```{r}
+seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
+seurat <- FindNeighbors(seurat, "pca", 1:30, verbose = FALSE)
+seurat <- FindClusters(seurat, resolution = 1.5, verbose = FALSE)
+seurat <- RunUMAP(seurat, 1:30, "pca", min.dist = 0.75, verbose = FALSE)
+
+add_df <- data.frame(Embeddings(seurat, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+seurat$umap1 <- add_df$umap1
+seurat$umap2 <- add_df$umap2
+
+red_dim_plot(seurat, "umap1", "umap2", "seurat_clusters", "cat")
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat), facet.highlight = TRUE, pt.size.factor = 3.5
+)
+```
+
+## Spatially Variable Genes
+
+```{r}
+seurat <- FindSpatiallyVariableFeatures(
+  seurat, "SCT", features = VariableFeatures(seurat)[1:1000], selection.method = "markvariogram"
+)
+top_features <- head(SpatiallyVariableFeatures(seurat), 6)
+SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
+```
+
+## Allen Mapping
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
+```
+
+### Allen Labels
+
+```{r}
+predictions <- TransferData(
+  anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_subclass_label"]] <- predictions
+DefaultAssay(seurat) <- "allen_subclass_label"
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+SpatialPlot(
+  seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+### My Labels
+
+```{r}
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+predictions <- TransferData(
+  anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
+)
+seurat[["allen_idents"]] <- predictions
+DefaultAssay(seurat) <- "allen_idents"
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+SpatialPlot(
+  seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
+  pt.size.factor = 3.5, alpha = c(0.1, 1)
+)
+```
+
+## Idents from Labels
+
+```{r}
+seurat_sub <- suppressWarnings(
+  seurat[
+    rownames(seurat) == "EC Reln" | rownames(seurat) == "EC Rorb" |
+      rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
+  ]
+)
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+)
+draw(heatmap)
+
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+heatmap <- Heatmap(
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
+  column_names_gp = gpar(fontsize = 4)
+)
+draw(heatmap)
+
+ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
+idents <- vector("list", 5)
+for (i in 1:(length(idents) - 1)) {
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+}
+idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
+
+spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
+idents <- unlist(idents)
+names(idents) <- spot_names
+idents <- idents[match(colnames(seurat), names(idents))]
+idents <- factor(idents)
+
+seurat@active.ident <- idents
+SpatialPlot(seurat, label = TRUE, pt.size.factor = 3.5)
+SpatialPlot(
+  seurat, cells.highlight = CellsByIdentities(seurat, ident_names),
+  facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat) <- "SCT"
+saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
 # References
