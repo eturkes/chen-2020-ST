@@ -69,13 +69,18 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 # --------------------------------------------
 packages <- c(
   "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep",
-  "ComplexHeatmap"
+  "ComplexHeatmap", "future", "GSVA", "GSEABase", "biomaRt", "limma", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 source("utils.R")
+plan("multiprocess", workers = 4)
 
 `%notin%` <- Negate(`%in%`)
+
 setDTthreads(0)
+plan("multiprocess", workers = getDTthreads())
+protocol <- c("mouse", "droplet", "single-cell", "umis") # See `cluster_pipeline` in `utils.R`.
+organism <- "mmusculus"
 analysis_no <- 1
 # --------------------------------------------
 
@@ -118,6 +123,35 @@ if (file.exists(rds)) {
 
 meta <- meta[meta$Spot %in% colnames(counts), ]
 meta <- meta[match(colnames(counts), meta$Spot), ]
+
+rds <- file.path(cache_dir, "gene_sets.rds")
+rds2 <- file.path(cache_dir, "gene_sets_filtered.rds")
+if (file.exists(rds) & file.exists(rds2)) {
+  gene_sets <- readRDS(rds)
+  gene_sets_filtered <- readRDS(rds2)
+} else {
+  gene_sets <- getGmt(file.path(assets_dir, "gene-sets", paste0(organism, ".", "GO.comb.ENSG.gmt")))
+  gene_sets <- filterGeneSets(gene_sets, 3, 500)
+  gene_sets_filtered <- gene_sets # Put aside for further filtering later.
+  for (i in seq(length(gene_sets@.Data))) {
+    go_id <- gene_sets[[i]]@setName
+    suppressWarnings(gene_sets[[i]]@setName <- gene_sets[[i]]@shortDescription)
+    suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
+  }
+
+  filter_sets <- read.delim(file.path(assets_dir, "gene-sets", "genes-09-00593-s001-s5.tsv"))
+  filter_sets <- filter_sets$GO.TERM
+  gene_sets_filtered <- gene_sets_filtered[names(gene_sets_filtered) %in% filter_sets]
+  for (i in seq(length(gene_sets_filtered@.Data))) {
+    go_id <- gene_sets_filtered[[i]]@setName
+    suppressWarnings(gene_sets_filtered[[i]]@setName <- gene_sets_filtered[[i]]@shortDescription)
+    suppressWarnings(gene_sets_filtered[[i]]@shortDescription <- go_id)
+  }
+
+  saveRDS(gene_sets, rds)
+  saveRDS(gene_sets_filtered, rds2)
+}
+gene_sets
 ```
 
 # B02_D1
@@ -178,6 +212,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
 ## QC
 
 ```{r}
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
 seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
@@ -295,7 +330,245 @@ SpatialPlot(
   facet.highlight = TRUE, pt.size.factor = 3.5
 )
 
+DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
+```
+
+## Differential Expression
+
+```{r}
+seurat_sub <- subset(seurat, idents = ident_names)
+SpatialPlot(
+    seurat_sub, cells.highlight = CellsByIdentities(seurat_sub, ident_names),
+    facet.highlight = TRUE, pt.size.factor = 3.5
+)
+
+DefaultAssay(seurat_sub) <- "Spatial"
+seurat_sub[["SCT"]] <- NULL
+seurat_sub <- seurat_sub[rowSums(as.matrix(GetAssayData(seurat_sub, slot = "counts")) > 0) >= 10, ]
+
+mart <- useEnsembl(
+  "ensembl", paste0(organism, "_gene_ensembl"), host = "http://useast.ensembl.org/"
+)
+attributes <- c("external_gene_name", "ensembl_gene_id", "chromosome_name")
+gene_anno <- getBM(attributes, "external_gene_name", rownames(seurat_sub), mart)
+gene_anno <- gene_anno[gene_anno$chromosome_name %in% c(1:22), ]
+gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
+
+tmp <- lapply(
+  geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), gene_anno$ensembl_gene_id
+)
+tmp <- filterGeneSets(tmp, 3, 500)
+gene_sets <- gene_sets[names(gene_sets) %in% names(tmp)]
+
+gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
+
+dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+if (nrow(dup) > 0) {
+  for (i in 1:dim(dup)[1]) {
+    for (j in 1:dim(gene_anno)[1]) {
+      if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+        gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
+      }
+    }
+  }
+  if (any(duplicated(gene_anno$external_gene_name))) {
+    stop("Duplicates in gene_anno.")
+  }
+  seurat_sub <- seurat_sub[rownames(seurat_sub) %in% gene_anno$external_gene_name, ]
+  new_mat <- GetAssayData(seurat_sub, "counts")
+  for (i in 1:dim(dup)[1]) {
+    for (j in 1:dim(seurat_sub)[1]) {
+      if (dup$external_gene_name[i] == rownames(seurat_sub)[j]) {
+        new_row <- GetAssayData(seurat_sub[j, ], "counts")
+        rownames(new_row) <- paste0(rownames(new_row), "-alt")
+        if (rownames(new_row) %in% rownames(new_mat)) {
+          rownames(new_row) <- paste0(rownames(new_row), "2")
+        }
+        new_mat <- rbind(new_mat, new_row)
+      }
+    }
+  }
+} else {
+  seurat_sub <- seurat_sub[rownames(seurat_sub) %in% gene_anno$external_gene_name, ]
+  new_mat <- GetAssayData(seurat_sub, "counts")
+}
+gene_anno <- gene_anno[gene_anno$external_gene_name %in% rownames(new_mat), ]
+gene_anno <- gene_anno[order(match(gene_anno$external_gene_name, rownames(new_mat))), ]
+rownames(new_mat) <- gene_anno$ensembl_gene_id
+
+seurat_sub <- CreateSeuratObject(new_mat, meta.data = seurat_sub[[]])
+rm(new_mat)
+seurat_sub$idents <- idents[which(idents != "NA")]
+seurat_sub@active.ident <- seurat_sub$idents
+
+pipeline_name <- "sctransform"
+seurat_sub <- cluster_pipeline(seurat_sub, cache_dir, pipeline_name, protocol, NULL, NULL, cc = FALSE)
+seurat_sub
+
+# Create MDS plots to identify potential confounders and latent factors.
+# ----------------------------------------------------------------------
+rds <- file.path(cache_dir, paste0(sub_name, "_d.rds"))
+if (file.exists(rds)) {
+  d <- readRDS(rds)
+} else {
+  d <- dist(t(GetAssayData(seurat_sub, "scale.data")))
+  saveRDS(d, rds)
+}
+mds <- cmdscale(d, 2)
+colnames(mds) <- paste0("mds_", 1:2)
+seurat_sub[["mds"]] <- CreateDimReducObject(mds, key = "mds_", assay = DefaultAssay(seurat_sub))
+rm(mds)
+add_df <- data.frame(Embeddings(seurat_sub, "mds"))
+names(add_df) <- paste0("mds", seq(ncol(add_df)))
+seurat_sub$mds1 <- add_df$mds1
+seurat_sub$mds2 <- add_df$mds2
+
+red_dim_plot(seurat_sub, "umap1", "umap2", "idents", "cat")
+red_dim_plot(seurat_sub, "mds1", "mds2", "idents", "cat")
+
+rds <- file.path(cache_dir, paste0(sub_name, "_gsva.rds"))
+if (file.exists(rds)) {
+  gsva <- readRDS(rds)
+} else {
+  gsva <- gsva(as.matrix(GetAssayData(seurat_sub)), gene_sets, method = "ssgsea")
+  saveRDS(gsva, rds)
+}
+
+umap <- as.matrix(data.frame(seurat_sub$umap1, seurat_sub$umap2))
+colnames(umap) <- paste0("umap_", 1:2)
+seurat_sub[["umap"]] <- CreateDimReducObject(umap, key = "umap_", assay = DefaultAssay(seurat_sub))
+rm(umap)
+
+seurat_sub$idents <- droplevels(seurat_sub$idents)
+seurat_sub$idents <- factor(gsub(" ", "_", seurat_sub$idents))
+
+design <- model.matrix(~ 0 + seurat_sub$idents)
+colnames(design) <- c("CA1_Wfs1", "CA3_Bok", "EC_Reln", "EC_Rorb")
+fit <- lmFit(gsva, design)
+contrast_mat <- makeContrasts(
+  EC_Reln-CA3_Bok, EC_Rorb-CA3_Bok, CA1_Wfs1-CA3_Bok,
+  EC_Rorb-CA1_Wfs1, EC_Reln-CA1_Wfs1, levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05, adjust.method = "none")
+tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1 & tests[ , 3] == 1, ]
+discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
+if (length(discard) > 0) {
+  tests_up <- tests_up[-discard, ]
+}
+tests_down <- tests[tests[ , 1] == -1 & tests[ , 2] == -1 & tests[ , 3] == -1, ]
+discard <- which(rownames(tests_down) %in% rownames(tests_down[rowSums(tests_down == 1) > 0, ]))
+if (length(discard) > 0) {
+  tests_down <- tests_down[-discard, ]
+}
+results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+gsva_list <- list(all, up, down)
+names(gsva_list) <- c(
+  "All DE", paste0("Upregulated in EC_Reln"),
+  paste0("Downregulated in EC_Reln")
+)
+
+fit <- lmFit(GetAssayData(seurat_sub), design)
+contrast_mat <- makeContrasts(
+  EC_Reln-CA3_Bok, EC_Rorb-CA3_Bok, CA1_Wfs1-CA3_Bok,
+  EC_Rorb-CA1_Wfs1, EC_Reln-CA1_Wfs1, levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05, adjust.method = "none")
+tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1 & tests[ , 3] == 1, ]
+discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
+if (length(discard) > 0) {
+  tests_up <- tests_up[-discard, ]
+}
+tests_down <- tests[tests[ , 1] == -1 & tests[ , 2] == -1 & tests[ , 3] == -1, ]
+discard <- which(rownames(tests_down) %in% rownames(tests_down[rowSums(tests_down == 1) > 0, ]))
+if (length(discard) > 0) {
+  tests_down <- tests_down[-discard, ]
+}
+results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+markers_list <- list(all, up, down)
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list[[2]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list[[2]]))), ]
+up <- markers_list[[2]]
+rownames(up) <- genes$external_gene_name
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list[[3]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list[[3]]))), ]
+down <- markers_list[[3]]
+rownames(down) <- genes$external_gene_name
+
+all <- rbind(up, down)
+all <- all[order(-all$B), ]
+markers_list_symbols <- list(all, up, down)
+```
+
+**EC_Reln Upregulated GO Terms**
+
+```{r}
+datatable_download_exp(gsva_list[[2]])
+```
+
+**EC_Reln Downregulated GO Terms**
+
+```{r}
+datatable_download_exp(gsva_list[[3]])
+```
+
+**EC_Reln Upregulated Genes**
+
+```{r}
+datatable_download_exp(markers_list_symbols[[2]])
+```
+
+**EC_Reln Downregulated Genes**
+
+```{r}
+datatable_download_exp(markers_list_symbols[[3]])
+```
+
+```{r, fig.width = 20}
+idents_ordered <- c(
+  grep("EC_Reln", seurat_sub$idents), grep("EC_Rorb", seurat_sub$idents),
+  grep("CA1_Wfs1", seurat_sub$idents), grep("CA3_Bok", seurat_sub$idents))
+gsva_ordered <- gsva[ , idents_ordered]
+
+mat <- gsva_ordered[rownames(gsva_ordered) %in% rownames(gsva_list[[2]]), ]
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))), cluster_columns = FALSE,
+  cluster_rows = FALSE, row_names_max_width = max_text_width(rownames(mat)),
+  show_column_names = FALSE
+)
+mat <- gsva_ordered[rownames(gsva_ordered) %in% rownames(gsva_list[[3]]), ]
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))), cluster_columns = FALSE,
+  cluster_rows = FALSE, row_names_max_width = max_text_width(rownames(mat)),
+  show_column_names = FALSE
+)
+```
+```{r}
+SpatialPlot(
+  seurat,
+  features = c(
+    rownames(markers_list_symbols[[2]])[1], rownames(markers_list_symbols[[3]])[1], "Gpc1", "Usp7"
+  ),
+  pt.size.factor = 3.5
+)
 ```
 
 # References

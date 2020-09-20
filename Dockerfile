@@ -36,9 +36,13 @@ RUN apt-get update \
         -e "install.packages('Seurat')" \
         -e "install.packages('hdf5r')" \
         -e "install.packages('spdep')" \
+        -e "install.packages('statmod')" \
+        -e "install.packages('DT')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('DropletUtils')" \
         -e "BiocManager::install('ComplexHeatmap')" \
+        -e "BiocManager::install('GSVA')" \
+        -e "BiocManager::install('biomaRt')" \
     && apt-get clean \
     && rm -Rf \
         /var/lib/apt/lists/ \
