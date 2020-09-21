@@ -68,12 +68,11 @@ The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be
 # This section should be checked per document.
 # --------------------------------------------
 packages <- c(
-  "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel", "spdep",
-  "ComplexHeatmap", "future", "DT"
+  "conflicted", "data.table", "DropletUtils", "Seurat", "ggplot2", "magrittr", "dplyr", "ggrepel",
+  "spdep", "ComplexHeatmap", "future", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 source("utils.R")
-plan("multiprocess", workers = 4)
 
 `%notin%` <- Negate(`%in%`)
 
