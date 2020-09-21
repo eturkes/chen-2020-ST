@@ -270,12 +270,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -452,12 +454,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -634,12 +638,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -816,12 +822,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -998,12 +1006,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -1180,12 +1190,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -1362,12 +1374,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -1544,12 +1558,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -1726,12 +1742,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -1908,12 +1926,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2090,12 +2110,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2272,12 +2294,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2446,12 +2470,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2628,12 +2654,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2802,12 +2830,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
@@ -2984,12 +3014,14 @@ seurat_sub <- suppressWarnings(
       rownames(seurat) == "CA1 Wfs1" |rownames(seurat) == "CA3 Bok",
   ]
 )
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
 )
 draw(heatmap)
 
 seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
