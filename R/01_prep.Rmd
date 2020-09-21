@@ -274,11 +274,11 @@ seurat_sub <- suppressWarnings(
 )
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 6
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1, 3:5)])])
 set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
@@ -451,7 +451,7 @@ heatmap <- Heatmap(
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:5])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1, 2, 4, 5)])])
 set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
@@ -620,11 +620,11 @@ seurat_sub <- suppressWarnings(
 )
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 7
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1, 3:5)])])
 set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
@@ -797,10 +797,10 @@ heatmap <- Heatmap(
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:6])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1, 4:6)])])
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 6,
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
 )
 draw(heatmap)
@@ -808,15 +808,7 @@ draw(heatmap)
 ident_names <- c("EC Rorb", "EC Reln", "CA1 Wfs1", "CA3 Bok")
 idents <- vector("list", 5)
 for (i in 1:(length(idents) - 1)) {
-  if (i == 1) {
-    idents[[i]] <- rep(
-      ident_names[i],
-      length(column_order(heatmap)[[1]]) + length(column_order(heatmap)[[2]]) +
-        length(column_order(heatmap)[[3]])
-    )
-  } else {
-    idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i + 2]]))
-  }
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
 }
 idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
@@ -1147,11 +1139,11 @@ seurat_sub <- suppressWarnings(
 )
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 5
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 7
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:4])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1:3, 5, 6)])])
 set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
@@ -1312,11 +1304,11 @@ seurat_sub <- suppressWarnings(
 )
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 6
+  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 7
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1:5])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1, 2, 4:6)])])
 set.seed(1)
 heatmap <- Heatmap(
   GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
@@ -1489,10 +1481,10 @@ heatmap <- Heatmap(
 )
 draw(heatmap)
 
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1:4, 6:8)])])
+seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[c(1:4, 6)])])
 set.seed(1)
 heatmap <- Heatmap(
-  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 5,
+  GetAssayData(seurat_sub), cluster_rows = FALSE, column_split = 4,
   column_names_gp = gpar(fontsize = 4)
 )
 draw(heatmap)
@@ -1500,13 +1492,7 @@ draw(heatmap)
 ident_names <- c("EC Reln", "CA3 Bok", "CA1 Wfs1", "EC Rorb")
 idents <- vector("list", 5)
 for (i in 1:(length(idents) - 1)) {
-  if (i == 4) {
-    idents[[i]] <- rep(
-      ident_names[i], length(column_order(heatmap)[[4]]) + length(column_order(heatmap)[[5]])
-    )
-  } else {
-    idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
-  }
+  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
 }
 idents[[5]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
