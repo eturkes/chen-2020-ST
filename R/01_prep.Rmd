@@ -125,7 +125,20 @@ meta <- meta[meta$Spot %in% colnames(counts), ]
 meta <- meta[match(colnames(counts), meta$Spot), ]
 ```
 
-# B02_D1
+# Allen Data
+
+```{r}
+allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
+allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
+allen$idents <- allen@active.ident
+
+red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
+red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
+```
+
+# Subsets
+
+## B02_D1
 
 ```{r}
 sub_name <- "B02_D1"
@@ -182,7 +195,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -190,7 +203,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -211,7 +224,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -221,22 +234,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -246,22 +252,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -309,7 +311,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B03_D2
+## B03_D2
 
 ```{r}
 sub_name <- "B03_D2"
@@ -366,7 +368,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -374,7 +376,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -395,7 +397,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -405,22 +407,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -430,22 +425,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -493,7 +484,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B02_E1
+## B02_E1
 
 ```{r}
 sub_name <- "B02_E1"
@@ -550,7 +541,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -558,7 +549,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -579,7 +570,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -589,22 +580,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -614,22 +598,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -677,7 +657,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B03_C2
+## B03_C2
 
 ```{r}
 sub_name <- "B03_C2"
@@ -734,7 +714,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -742,7 +722,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -763,7 +743,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -773,22 +753,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -798,22 +771,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -861,7 +830,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N02_D1
+## N02_D1
 
 ```{r}
 sub_name <- "N02_D1"
@@ -918,7 +887,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -926,7 +895,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -947,7 +916,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -957,22 +926,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -982,22 +944,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1045,7 +1003,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N03_D2
+## N03_D2
 
 ```{r}
 sub_name <- "N03_D2"
@@ -1102,7 +1060,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -1110,7 +1068,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -1131,7 +1089,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -1141,22 +1099,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -1166,22 +1117,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1229,7 +1176,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N02_C1
+## N02_C1
 
 ```{r}
 sub_name <- "N02_C1"
@@ -1286,7 +1233,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -1294,7 +1241,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -1315,7 +1262,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -1325,22 +1272,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -1350,22 +1290,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1413,7 +1349,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N03_C2
+## N03_C2
 
 ```{r}
 sub_name <- "N03_C2"
@@ -1470,7 +1406,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -1478,7 +1414,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -1499,7 +1435,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -1509,22 +1445,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -1534,22 +1463,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1597,7 +1522,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B04_D1
+## B04_D1
 
 ```{r}
 sub_name <- "B04_D1"
@@ -1654,7 +1579,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -1662,7 +1587,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -1683,7 +1608,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -1693,22 +1618,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -1718,22 +1636,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1781,7 +1695,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B05_D2
+## B05_D2
 
 ```{r}
 sub_name <- "B05_D2"
@@ -1838,7 +1752,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -1846,7 +1760,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -1867,7 +1781,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -1877,22 +1791,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -1902,22 +1809,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -1965,7 +1868,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B04_E1
+## B04_E1
 
 ```{r}
 sub_name <- "B04_E1"
@@ -2022,7 +1925,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2030,7 +1933,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2051,7 +1954,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2061,22 +1964,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2086,22 +1982,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -2149,7 +2041,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# B05_E2
+## B05_E2
 
 ```{r}
 sub_name <- "B05_E2"
@@ -2206,7 +2098,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2214,7 +2106,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2235,7 +2127,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2245,22 +2137,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2270,22 +2155,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -2333,7 +2214,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N04_D1
+## N04_D1
 
 ```{r}
 sub_name <- "N04_D1"
@@ -2382,7 +2263,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2390,7 +2271,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2411,7 +2292,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2421,22 +2302,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2446,22 +2320,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -2509,7 +2379,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N05_D2
+## N05_D2
 
 ```{r}
 sub_name <- "N05_D2"
@@ -2566,7 +2436,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2574,7 +2444,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2595,7 +2465,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2605,22 +2475,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2630,22 +2493,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -2693,7 +2552,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N04_E1
+## N04_E1
 
 ```{r}
 sub_name <- "N04_E1"
@@ -2742,7 +2601,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2750,7 +2609,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2771,7 +2630,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2781,22 +2640,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2806,22 +2658,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
@@ -2869,7 +2717,7 @@ DefaultAssay(seurat) <- "SCT"
 saveRDS(seurat, file.path(cache_dir, paste0(sub_name, ".rds")))
 ```
 
-# N05_C2
+## N05_C2
 
 ```{r}
 sub_name <- "N05_C2"
@@ -2926,7 +2774,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
   theme(legend.position = "right")
 ```
 
-## QC
+### QC
 
 ```{r}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
@@ -2934,7 +2782,7 @@ seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
 SpatialPlot(seurat, features = c("Reln", "Rorb", "Wfs1", "Bok"), pt.size.factor = 3.5)
 ```
 
-## Clustering
+### Clustering
 
 ```{r}
 seurat <- RunPCA(seurat, "SCT", verbose = FALSE)
@@ -2955,7 +2803,7 @@ SpatialPlot(
 )
 ```
 
-## Spatially Variable Genes
+### Spatially Variable Genes
 
 ```{r}
 seurat <- FindSpatiallyVariableFeatures(
@@ -2965,22 +2813,15 @@ top_features <- head(SpatiallyVariableFeatures(seurat), 6)
 SpatialPlot(seurat, features = top_features, pt.size.factor = 3.5)
 ```
 
-## Allen Mapping
-
-```{r}
-allen <- readRDS(file.path(assets_dir, "integration", "EC_HIP_neuronal_seurat.rds"))
-anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
-```
-
 ### Allen Labels
 
 ```{r}
+anchors <- suppressWarnings(FindTransferAnchors(allen, seurat, "SCT", verbose = FALSE))
 predictions <- TransferData(
   anchors, allen$subclass_label, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_subclass_label"]] <- predictions
 DefaultAssay(seurat) <- "allen_subclass_label"
-red_dim_plot(allen, "umap1", "umap2", "subclass_label", "cat")
 SpatialPlot(
   seurat, features = c("L2/3 IT ENTl", "CA1-ProS", "CA3", "DG"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
@@ -2990,22 +2831,18 @@ SpatialPlot(
 ### My Labels
 
 ```{r}
-allen <- RenameIdents(allen, "23" = "EC Reln", "22" = "EC Rorb", "3" ="CA1 Wfs1", "29" = "CA3 Bok")
-allen$idents <- allen@active.ident
-
 predictions <- TransferData(
   anchors, allen$idents, seurat[["pca"]], prediction.assay = TRUE, verbose = FALSE
 )
 seurat[["allen_idents"]] <- predictions
 DefaultAssay(seurat) <- "allen_idents"
-red_dim_plot(allen, "umap1", "umap2", "idents", "cat")
 SpatialPlot(
   seurat, features = c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok"),
   pt.size.factor = 3.5, alpha = c(0.1, 1)
 )
 ```
 
-## Idents from Labels
+### Idents from Labels
 
 ```{r}
 seurat_sub <- suppressWarnings(
