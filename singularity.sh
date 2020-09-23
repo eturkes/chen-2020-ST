@@ -20,7 +20,7 @@
 
 # Shell script for building a Singularity image from Docker Hub and running it.
 
-singularity pull chen-2020-st.simg docker://eturkes/chen-2020-st:R4.0.2v7
+singularity pull chen-2020-st.simg docker://eturkes/chen-2020-st:R4.0.2v8
 
 if [ "$1" = "all" ]; then
     singularity exec \

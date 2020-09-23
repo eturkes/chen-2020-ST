@@ -43,6 +43,7 @@ RUN apt-get update \
         -e "BiocManager::install('ComplexHeatmap')" \
         -e "BiocManager::install('GSVA')" \
         -e "BiocManager::install('biomaRt')" \
+        -e "BiocManager::install('scater')" \
     && apt-get clean \
     && rm -Rf \
         /var/lib/apt/lists/ \
