@@ -26,3 +26,8 @@ rmarkdown::render(
   file.path(paste0(save_name, ".Rmd")),
   output_file = file.path("..", "results", paste0(save_name, ".html"))
 )
+save_name <- "02_analysis"
+rmarkdown::render(
+  file.path(paste0(save_name, ".Rmd")),
+  output_file = file.path("..", "results", paste0(save_name, ".html"))
+)
