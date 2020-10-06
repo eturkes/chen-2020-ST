@@ -99,9 +99,9 @@ names(metadata_to_plot) <- "seurat_clusters"
 # Everything else in this chunk generally remains unchanged.
 # ----------------------------------------------------------
 data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset.
-assets_dir <- file.path("..", "assets") # Backed up data.
+assets_dir <- file.path("..", "..", "assets") # Backed up data.
 
-cache_dir <- file.path("..", "..", "tmp", "cache", paste0("0", analysis_no))
+cache_dir <- file.path("..", "..", "tmp", "cache", data_name, paste0("0", analysis_no))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
