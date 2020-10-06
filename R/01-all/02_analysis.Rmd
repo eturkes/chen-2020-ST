@@ -1,0 +1,600 @@
+---
+title: "02 Analysis"
+author:
+  - name: "Emir Turkes [emir.turkes@eturkes.com]"
+  - name: "UK Dementia Research Institute at UCL"
+date: '`r strftime(Sys.time(), "%B %d, %Y")`'
+bibliography: "../../chen-2020-ST.bib"
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(
+    "..", "..", "results", "02_analysis.html"
+  ))})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {
+  font-size: 0.95em; padding-left: 35px; text-indent: 0;
+}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [chen-2020-ST](https://github.com/eturkes/chen-2020-ST).*
+*Please email for access.*
+
+In this document we prepare the gene count matrix for downstream analysis.
+The data here is derived from @`r unlist(strsplit(getwd(), "/"))[4]` and will be referenced using the name ``r unlist(strsplit(getwd(), "/"))[4]``.
+
+```{r}
+# Some standard boilerplate.
+# --------------------------
+#    This file is part of chen-2020-ST.
+#    Copyright (C) 2019-2020  Emir Turkes, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# This section should be checked per document.
+# --------------------------------------------
+packages <- c(
+  "conflicted", "data.table", "Seurat", "future", "scales", "ComplexHeatmap", "GSEABase", "GSVA",
+  "biomaRt", "ggplot2", "dplyr", "ggrepel", "SingleCellExperiment", "scater", "BiocParallel",
+  "edgeR", "RColorBrewer", "DT"
+)
+invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
+source("utils.R")
+conflict_prefer("cpm", "edgeR", quiet = TRUE)
+conflict_prefer("intersect", "BiocGenerics", quiet = TRUE)
+conflict_prefer("collapse", "dplyr", quiet = TRUE)
+
+analysis_no <- 2
+setDTthreads(0)
+plan("multiprocess", workers = getDTthreads())
+protocol <- c("mouse", "droplet", "single-cell", "umis") # See `cluster_pipeline` in `utils.R`.
+organism <- "mmusculus"
+vars_to_regress <- NULL # See `cluster_pipeline` in `utils.R`.
+parallel_override <- NULL # See `parallel_plan` in `utils.R`.
+color <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
+
+# Metadata to plot after dimensionality reduction and clustering.
+# Values in list can include "no_legend and/or "no_label" to exclude those.
+# -------------------------------------------------------------------------
+metadata_to_plot <- vector("list", 1)
+names(metadata_to_plot) <- "seurat_clusters"
+# -------------------------------------------------------------------------
+# --------------------------------------------
+# --------------------------------------------
+
+# Everything else in this chunk generally remains unchanged.
+# ----------------------------------------------------------
+data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset.
+assets_dir <- file.path("..", "assets") # Backed up data.
+
+cache_dir <- file.path("..", "..", "tmp", "cache", paste0("0", analysis_no))
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7)
+# ----------------------------------------------------------
+# --------------------------
+```
+# Aggregate Data
+
+```{r}
+rds_names <- list.files(file.path(cache_dir, "..", "01"))
+rds_names <- rds_names[-which(rds_names == "counts.rds")]
+
+data_list <- vector("list", length(rds_names))
+for (i in seq_along(data_list)) {
+  suppressWarnings(data_list[i] <- readRDS(file.path(cache_dir, "..", "01", rds_names[i])))
+}
+
+genes <- Reduce(
+  intersect,
+  list(
+    rownames(data_list[[1]]), rownames(data_list[[2]]), rownames(data_list[[3]]),
+    rownames(data_list[[4]]), rownames(data_list[[5]]), rownames(data_list[[6]]),
+    rownames(data_list[[7]]), rownames(data_list[[8]])
+  )
+)
+
+ident_names <- c("EC Reln", "EC Rorb", "CA1 Wfs1", "CA3 Bok")
+for (i in seq_along(data_list)) {
+  print(rds_names[i])
+  print(
+    SpatialPlot(
+      data_list[[i]], cells.highlight = CellsByIdentities(data_list[[i]], ident_names),
+      facet.highlight = TRUE, pt.size.factor = 3.5
+    )
+  )
+  data_list[[i]] <- data_list[[i]][genes, ]
+  data_list[[i]] <- subset(data_list[[i]], idents = ident_names)
+}
+
+seurat <- merge(
+  data_list[[1]],
+  c(
+    data_list[[2]], data_list[[3]], data_list[[4]], data_list[[5]],
+    data_list[[6]], data_list[[7]], data_list[[8]]
+  )
+)
+seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) >= 10, ]
+idents <- as.factor(sub(" ", "_", seurat@active.ident))
+rm(data_list)
+gc()
+
+rds <- file.path(cache_dir, "gene_sets.rds")
+rds2 <- file.path(cache_dir, "gene_sets_filtered.rds")
+if (file.exists(rds) & file.exists(rds2)) {
+  gene_sets <- readRDS(rds)
+  gene_sets_filtered <- readRDS(rds2)
+} else {
+  gene_sets <- getGmt(file.path(assets_dir, "gene-sets", paste0(organism, ".", "GO.comb.ENSG.gmt")))
+  gene_sets <- filterGeneSets(gene_sets, 3, 500)
+  gene_sets_filtered <- gene_sets # Put aside for further filtering later.
+  for (i in seq(length(gene_sets@.Data))) {
+    go_id <- gene_sets[[i]]@setName
+    suppressWarnings(gene_sets[[i]]@setName <- gene_sets[[i]]@shortDescription)
+    suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
+  }
+  filter_sets <- read.delim(file.path(assets_dir, "gene-sets", "genes-09-00593-s001-s5.tsv"))
+  filter_sets <- filter_sets$GO.TERM
+  gene_sets_filtered <- gene_sets_filtered[names(gene_sets_filtered) %in% filter_sets]
+  for (i in seq(length(gene_sets_filtered@.Data))) {
+    go_id <- gene_sets_filtered[[i]]@setName
+    suppressWarnings(gene_sets_filtered[[i]]@setName <- gene_sets_filtered[[i]]@shortDescription)
+    suppressWarnings(gene_sets_filtered[[i]]@shortDescription <- go_id)
+  }
+  saveRDS(gene_sets, rds)
+  saveRDS(gene_sets_filtered, rds2)
+}
+gene_sets
+
+# Create a Seurat object containing only clusters of interest with downsampling.
+# Also convert gene symbols to ENSEMBL IDs.
+# ------------------------------------------------------------------------------
+rds <- file.path(cache_dir, "seurat_cleaned.rds")
+rds2 <- file.path(cache_dir, "gene_anno.rds")
+if (file.exists(rds) & file.exists(rds2)) {
+  seurat <- readRDS(rds)
+  gene_anno <- readRDS(rds2)
+} else {
+
+  # ---------------
+  # Get gene annotations.
+  # ---------------------
+  mart <- useEnsembl(
+    "ensembl", paste0(organism, "_gene_ensembl"), host = "http://useast.ensembl.org/"
+  )
+  attributes <- c("external_gene_name", "ensembl_gene_id", "chromosome_name")
+  gene_anno <- getBM(attributes, "external_gene_name", rownames(seurat), mart)
+  gene_anno <- gene_anno[gene_anno$chromosome_name %in% c(1:22), ]
+  gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
+  tmp <- lapply(
+    geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), gene_anno$ensembl_gene_id
+  )
+  tmp <- filterGeneSets(tmp, 3, 500)
+  gene_sets <- gene_sets[names(gene_sets) %in% names(tmp)]
+  gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
+  # ------------------------
+
+  # For gene symbols with multiple ENSEMBL IDs, duplicate the gene symbol to have an identical row
+  # for each ENSEMBL ID.
+  # ----------------------------------------------------------------------------------------------
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in 1:dim(dup)[1]) {
+      for (j in 1:dim(gene_anno)[1]) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
+        }
+      }
+    }
+    if (any(duplicated(gene_anno$external_gene_name))) {
+      stop("Duplicates in gene_anno.")
+    }
+    seurat <- seurat[rownames(seurat) %in% gene_anno$external_gene_name, ]
+    new_mat <- GetAssayData(seurat, "counts")
+    for (i in 1:dim(dup)[1]) {
+      for (j in 1:dim(seurat)[1]) {
+        if (dup$external_gene_name[i] == rownames(seurat)[j]) {
+          new_row <- GetAssayData(seurat[j, ], "counts")
+          rownames(new_row) <- paste0(rownames(new_row), "-alt")
+          if (rownames(new_row) %in% rownames(new_mat)) {
+            rownames(new_row) <- paste0(rownames(new_row), "2")
+          }
+          new_mat <- rbind(new_mat, new_row)
+        }
+      }
+    }
+  } else {
+    seurat <- seurat[rownames(seurat) %in% gene_anno$external_gene_name, ]
+    new_mat <- GetAssayData(seurat, "counts")
+  }
+  gene_anno <- gene_anno[gene_anno$external_gene_name %in% rownames(new_mat), ]
+  gene_anno <- gene_anno[order(match(gene_anno$external_gene_name, rownames(new_mat))), ]
+  rownames(new_mat) <- gene_anno$ensembl_gene_id
+  seurat <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
+  rm(new_mat)
+  seurat$idents <- idents
+  seurat@active.ident <- seurat$idents
+  seurat$samples <- sub("__.*", "", colnames(seurat))
+  seurat$groups <- paste0(seurat$idents, "_", seurat$samples)
+  # ----------------------------------------------------------------------------------------------
+
+  saveRDS(seurat, rds)
+  saveRDS(gene_anno, rds2)
+}
+# ------------------------------------------------------------------------------
+
+sub_name <- "sctransform"
+seurat <- cluster_pipeline(
+  seurat, cache_dir, sub_name, protocol, vars_to_regress, parallel_override, cc = FALSE
+)
+seurat
+
+# Create MDS plots to identify potential confounders and latent factors.
+# ----------------------------------------------------------------------
+d <- dist(t(GetAssayData(seurat, "scale.data")))
+mds <- cmdscale(d, 2)
+colnames(mds) <- paste0("mds_", 1:2)
+seurat[["mds"]] <- CreateDimReducObject(mds, key = "mds_", assay = DefaultAssay(seurat))
+rm(mds)
+add_df <- data.frame(Embeddings(seurat, "mds"))
+names(add_df) <- paste0("mds", seq(ncol(add_df)))
+seurat$mds1 <- add_df$mds1
+seurat$mds2 <- add_df$mds2
+red_dim_plot(seurat, "umap1", "umap2", "idents", "cat")
+red_dim_plot(seurat, "mds1", "mds2", "idents", "cat")
+for (i in 1:length(metadata_to_plot)) {
+  print(names(metadata_to_plot)[i])
+  if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) + NoLegend())
+  } else if ("no_legend" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") + NoLegend())
+  } else if ("no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]))
+  } else {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat"))
+  }
+}
+for (i in 1:length(metadata_to_plot)) {
+  print(names(metadata_to_plot)[i])
+  if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i]) + NoLegend())
+  } else if ("no_legend" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i], "cat") + NoLegend())
+  } else if ("no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i]))
+  } else {
+    print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i], "cat"))
+  }
+}
+# ----------------------------------------------------------------------
+
+hist(as.matrix(GetAssayData(seurat)))
+
+# Aggregate features to into "pseudo-bulk" counts.
+# ------------------------------------------------
+rds <- file.path(cache_dir, "pseudobulk.rds")
+if (file.exists(rds)) {
+  sce <- readRDS(rds)
+} else {
+  sce <- as.SingleCellExperiment(seurat)
+  counts(sce) <- logcounts(sce)
+  sce <- suppressWarnings(
+    aggregateAcrossCells(sce, sce$groups, use_exprs_values = "counts", BPPARAM = MulticoreParam())
+  )
+  keep <- filterByExpr(
+    counts(sce), group = rep(seq(1:16), each = 2), min.count = quantile(counts(sce), 0.5),
+    min.total.count = quantile(counts(sce), 0.5), min.prop = 1
+  )
+  sce <- sce[keep, ]
+  dge <- DGEList(counts(sce))
+  dge <- calcNormFactors(dge)
+  # dge <- voom(dge, design, plot = TRUE)
+  logcounts(sce) <- cpm(dge, log = TRUE, prior.count = 3)
+  rm(dge)
+  # logcounts(sce) <- log2(counts(sce) + 1)
+  # sce <- logNormCounts(sce)
+  # logcounts(sce) <- counts(sce)
+  saveRDS(sce, rds)
+}
+print("Pseudo-bulk counts distribution")
+hist(logcounts(sce))
+# ------------------------------------------------
+
+# Subset other objects.
+# ---------------------
+gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(sce), ]
+seurat <- seurat[rownames(seurat) %in% rownames(sce), ]
+tmp <- lapply(
+  geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), gene_anno$ensembl_gene_id
+)
+tmp <- filterGeneSets(tmp, 3, 500)
+gene_sets <- gene_sets[names(gene_sets) %in% names(tmp)]
+
+rds <- file.path(cache_dir, "gene_set_overlap.rds")
+if (file.exists(rds)) {
+  overlap <- readRDS(rds)
+} else {
+  overlap <- computeGeneSetsOverlap(gene_sets, unique(unlist(geneIds(gene_sets))))
+  saveRDS(overlap, rds)
+}
+tmp <- rowSums(overlap)
+tmp <- tmp[order(tmp, decreasing = TRUE)]
+gene_sets_sorted <- gene_sets[match(names(tmp), names(gene_sets))]
+rds <- file.path(cache_dir, "gene_set_overlap_sorted.rds")
+if (file.exists(rds)) {
+  overlap <- readRDS(rds)
+} else {
+  overlap <- computeGeneSetsOverlap(gene_sets_sorted, unique(unlist(geneIds(gene_sets_sorted))))
+  saveRDS(overlap, rds)
+}
+
+overlap[upper.tri(overlap)] <- 0
+diag(overlap) <- 0
+keep <- apply(overlap, 1, max)
+keep <- keep[keep < 0.9]
+gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+
+sce <- sce[rownames(sce) %in% unique(unlist(geneIds(gene_sets))), ]
+gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(sce), ]
+seurat <- seurat[rownames(seurat) %in% rownames(sce), ]
+tmp <- lapply(
+  geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), gene_anno$ensembl_gene_id
+)
+tmp <- filterGeneSets(tmp, 3, 500)
+gene_sets <- gene_sets[names(gene_sets) %in% names(tmp)]
+#----------------------
+
+# Run GSVA on pseudo-bulk counts.
+# -------------------------------
+rds <- file.path(cache_dir, "gsva_pseudobulk.rds")
+if (file.exists(rds)) {
+  gsva <- readRDS(rds)
+} else {
+  gsva <- gsva(logcounts(sce), gene_sets, method = "ssgsea")
+  saveRDS(gsva, rds)
+}
+# -------------------------------
+
+# Add previous UMAP to Seurat object.
+# -----------------------------------
+umap <- as.matrix(data.frame(seurat$umap1, seurat$umap2))
+colnames(umap) <- paste0("umap_", 1:2)
+seurat[["umap"]] <- CreateDimReducObject(umap, key = "umap_", assay = DefaultAssay(seurat))
+rm(umap)
+# -----------------------------------
+
+sce <- sce[ , c(17:32, 1:16)]
+gsva <- gsva[ , c(17:32, 1:16)]
+
+meta <- data.frame(
+  sample = sub("^[^_]*_[^_]*_", "", colnames(sce)),
+  cluster = sub("_([^_]*_[^_]*)$", "", colnames(sce)),
+  bio_rep = gsub("^(?:[^_]+_){2}([^_]+).*", "\\1", colnames(sce)),
+  group = rep(c("WT", "NLGF"), times = 4, each = 4),
+  age = rep(c("3mo", "18mo"), times = 8, each = 2)
+)
+
+bio_rep_color <- hue_pal()(length(unique(meta$bio_rep)))
+top_anno <- HeatmapAnnotation(
+  biological_replicate = meta$bio_rep,
+  age = meta$age,
+  group = meta$group,
+  cluster = meta$cluster,
+  col = list(
+    biological_replicate = c(
+      "B02" = bio_rep_color[1], "B04" = bio_rep_color[3],
+      "B05" = bio_rep_color[5], "N03" = bio_rep_color[2],
+      "N04" = bio_rep_color[4], "N05" = bio_rep_color[6]
+    ),
+    age = c("3mo" = bio_rep_color[5], "18mo" = bio_rep_color[1]),
+    group = c("WT" = bio_rep_color[5], "NLGF" = bio_rep_color[1]),
+    cluster = c(
+      "EC_Reln" = bio_rep_color[4], "EC_Rorb" = bio_rep_color[3],
+      "CA1_Wfs1" = bio_rep_color[6], "CA3_Bok" = bio_rep_color[2]
+    )
+  )
+)
+```
+
+# Gene Set Enrichment
+
+```{r, fig.height = 10, fig.width = 15}
+design <- model.matrix(~ 0 + meta$cluster + meta$age + meta$cluster:meta$group:meta$age)
+colnames(design) <- make.names(colnames(design))
+corr_fit <- duplicateCorrelation(gsva, design, block = meta$bio_rep)
+fit <- lmFit(gsva, design, block = meta$bio_rep, cor = corr_fit$consensus)
+contrast_mat <- makeContrasts(
+  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterEC_Reln.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "ssGSEA score"),
+  column_title = "NLGF vs WT in 18mo old mice in EC Reln cluster",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+
+contrast_mat <- makeContrasts(
+  meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "ssGSEA score"),
+  column_title = "NLGF vs WT in 18mo old mice in CA1 Wfs1 cluster",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+
+contrast_mat <- makeContrasts(
+  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterCA3_Bok.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "ssGSEA score"),
+  column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+```
+
+# Differential Expression
+
+```{r, fig.height = 10, fig.width = 15}
+design <- model.matrix(~ 0 + meta$cluster + meta$age + meta$cluster:meta$group:meta$age)
+colnames(design) <- make.names(colnames(design))
+corr_fit <- duplicateCorrelation(logcounts(sce), design, block = meta$bio_rep)
+
+fit <- lmFit(logcounts(sce), design, block = meta$bio_rep, cor = corr_fit$consensus)
+contrast_mat <- makeContrasts(
+  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterEC_Reln.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+rownames(mat) <- gene_ids$external_gene_name
+rownames(results) <- gene_ids$external_gene_name
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "expression"),
+  column_title = "NLGF vs WT in 18mo old mice in EC Reln cluster",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+
+contrast_mat <- makeContrasts(
+  meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+rownames(mat) <- gene_ids$external_gene_name
+rownames(results) <- gene_ids$external_gene_name
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "expression"),
+  column_title = "NLGF vs WT in 18mo old mice in CA1 Wfs1 cluster",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+
+contrast_mat <- makeContrasts(
+  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterCA3_Bok.meta.age18mo.meta.groupWT,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+rownames(mat) <- gene_ids$external_gene_name
+rownames(results) <- gene_ids$external_gene_name
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "expression"),
+  column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+
+contrast_mat <- makeContrasts(
+  meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF,
+  levels = design
+)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+rownames(mat) <- gene_ids$external_gene_name
+rownames(results) <- gene_ids$external_gene_name
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  top_annotation = top_anno,
+  heatmap_legend_param = list(title = "expression"),
+  column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
+  column_title_gp = gpar(fontsize = 15)
+)
+datatable_download_exp(results)
+```
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```

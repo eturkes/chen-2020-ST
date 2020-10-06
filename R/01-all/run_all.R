@@ -21,26 +21,13 @@
 
 setwd(dirname(parent.frame(2)$ofile)) # Move to location of this file.
 
-dir_name <- "01-all"
 save_name <- "01_prep"
 rmarkdown::render(
-  file.path(dir_name, paste0(save_name, ".Rmd")),
-  output_file = file.path("..", "..", "results", paste0(save_name, ".html"))
+  file.path(paste0(save_name, ".Rmd")),
+  output_file = file.path("..", "results", paste0(save_name, ".html"))
 )
 save_name <- "02_analysis"
 rmarkdown::render(
-  file.path(dir_name, paste0(save_name, ".Rmd")),
-  output_file = file.path("..", "..", "results", paste0(save_name, ".html"))
-)
-
-dir_name <- "01-EC-Reln"
-save_name <- "01_prep"
-rmarkdown::render(
-  file.path(dir_name, paste0(save_name, ".Rmd")),
-  output_file = file.path("..", "..", "results", paste0(save_name, ".html"))
-)
-save_name <- "02_analysis"
-rmarkdown::render(
-  file.path(dir_name, paste0(save_name, ".Rmd")),
-  output_file = file.path("..", "..", "results", paste0(save_name, ".html"))
+  file.path(paste0(save_name, ".Rmd")),
+  output_file = file.path("..", "results", paste0(save_name, ".html"))
 )

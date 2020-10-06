@@ -4,7 +4,7 @@ author:
   - name: "Emir Turkes [emir.turkes@eturkes.com]"
   - name: "UK Dementia Research Institute at UCL"
 date: '`r strftime(Sys.time(), "%B %d, %Y")`'
-bibliography: "../chen-2020-ST.bib"
+bibliography: "../../chen-2020-ST.bib"
 link-citations: true
 output:
   html_document:
@@ -19,7 +19,7 @@ output:
       smooth_scroll: false
 knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(
-    "..", "results", "01_prep.html"
+    "..", "..", "results", "01_prep.html"
   ))})
 ---
 
@@ -72,7 +72,7 @@ packages <- c(
   "spdep", "ComplexHeatmap", "future", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
-source("utils.R")
+source(file.path("..", "utils.R"))
 
 `%notin%` <- Negate(`%in%`)
 
@@ -85,10 +85,10 @@ analysis_no <- 1
 
 # Everything else in this chunk generally remains unchanged.
 # ----------------------------------------------------------
-data_name <- unlist(strsplit(getwd(), "/"))[4] # Name of dataset.
+data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset.
 assets_dir <- file.path("..", "assets") # Backed up data.
 
-cache_dir <- file.path("..", "tmp", "cache", paste0("0", analysis_no))
+cache_dir <- file.path("..", "..", "tmp", "cache", paste0("0", analysis_no))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
