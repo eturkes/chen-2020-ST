@@ -73,7 +73,7 @@ packages <- c(
   "edgeR", "RColorBrewer", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
-source("utils.R")
+source(file.path("..", "utils.R"))
 conflict_prefer("cpm", "edgeR", quiet = TRUE)
 conflict_prefer("intersect", "BiocGenerics", quiet = TRUE)
 conflict_prefer("collapse", "dplyr", quiet = TRUE)

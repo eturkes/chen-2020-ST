@@ -72,7 +72,7 @@ packages <- c(
   "spdep", "ComplexHeatmap", "future", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
-source("utils.R")
+source(file.path("..", "utils.R"))
 
 `%notin%` <- Negate(`%in%`)
 
