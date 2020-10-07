@@ -501,96 +501,96 @@ datatable_download_exp(results)
 # Differential Expression
 
 ```{r, fig.height = 10, fig.width = 15}
-design <- model.matrix(~ 0 + meta$cluster + meta$age + meta$cluster:meta$group:meta$age)
-colnames(design) <- make.names(colnames(design))
-corr_fit <- duplicateCorrelation(logcounts(sce), design, block = meta$bio_rep)
-
-fit <- lmFit(logcounts(sce), design, block = meta$bio_rep, cor = corr_fit$consensus)
-contrast_mat <- makeContrasts(
-  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterEC_Reln.meta.age18mo.meta.groupWT,
-  levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
-mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
-gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
-rownames(mat) <- gene_ids$external_gene_name
-rownames(results) <- gene_ids$external_gene_name
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
-  color,
-  cluster_columns = FALSE,
-  top_annotation = top_anno,
-  heatmap_legend_param = list(title = "expression"),
-  column_title = "NLGF vs WT in 18mo old mice in EC Reln cluster",
-  column_title_gp = gpar(fontsize = 15)
-)
-datatable_download_exp(results)
-
-contrast_mat <- makeContrasts(
-  meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupWT,
-  levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
-mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
-gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
-rownames(mat) <- gene_ids$external_gene_name
-rownames(results) <- gene_ids$external_gene_name
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
-  color,
-  cluster_columns = FALSE,
-  top_annotation = top_anno,
-  heatmap_legend_param = list(title = "expression"),
-  column_title = "NLGF vs WT in 18mo old mice in CA1 Wfs1 cluster",
-  column_title_gp = gpar(fontsize = 15)
-)
-datatable_download_exp(results)
-
-contrast_mat <- makeContrasts(
-  meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterCA3_Bok.meta.age18mo.meta.groupWT,
-  levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
-mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
-gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
-rownames(mat) <- gene_ids$external_gene_name
-rownames(results) <- gene_ids$external_gene_name
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
-  color,
-  cluster_columns = FALSE,
-  row_names_max_width = max_text_width(rownames(mat)),
-  top_annotation = top_anno,
-  heatmap_legend_param = list(title = "expression"),
-  column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
-  column_title_gp = gpar(fontsize = 15)
-)
-datatable_download_exp(results)
-
-contrast_mat <- makeContrasts(
-  meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF,
-  levels = design
-)
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
-mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
-gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
-rownames(mat) <- gene_ids$external_gene_name
-rownames(results) <- gene_ids$external_gene_name
-Heatmap(
-  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
-  color,
-  cluster_columns = FALSE,
-  row_names_max_width = max_text_width(rownames(mat)),
-  top_annotation = top_anno,
-  heatmap_legend_param = list(title = "expression"),
-  column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
-  column_title_gp = gpar(fontsize = 15)
-)
-datatable_download_exp(results)
+# design <- model.matrix(~ 0 + meta$cluster + meta$age + meta$cluster:meta$group:meta$age)
+# colnames(design) <- make.names(colnames(design))
+# corr_fit <- duplicateCorrelation(logcounts(sce), design, block = meta$bio_rep)
+# 
+# fit <- lmFit(logcounts(sce), design, block = meta$bio_rep, cor = corr_fit$consensus)
+# contrast_mat <- makeContrasts(
+#   meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterEC_Reln.meta.age18mo.meta.groupWT,
+#   levels = design
+# )
+# cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+# results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+# mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+# gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+# rownames(mat) <- gene_ids$external_gene_name
+# rownames(results) <- gene_ids$external_gene_name
+# Heatmap(
+#   t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+#   color,
+#   cluster_columns = FALSE,
+#   top_annotation = top_anno,
+#   heatmap_legend_param = list(title = "expression"),
+#   column_title = "NLGF vs WT in 18mo old mice in EC Reln cluster",
+#   column_title_gp = gpar(fontsize = 15)
+# )
+# datatable_download_exp(results)
+# 
+# contrast_mat <- makeContrasts(
+#   meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupWT,
+#   levels = design
+# )
+# cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+# results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+# mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+# gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+# rownames(mat) <- gene_ids$external_gene_name
+# rownames(results) <- gene_ids$external_gene_name
+# Heatmap(
+#   t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+#   color,
+#   cluster_columns = FALSE,
+#   top_annotation = top_anno,
+#   heatmap_legend_param = list(title = "expression"),
+#   column_title = "NLGF vs WT in 18mo old mice in CA1 Wfs1 cluster",
+#   column_title_gp = gpar(fontsize = 15)
+# )
+# datatable_download_exp(results)
+# 
+# contrast_mat <- makeContrasts(
+#   meta.clusterEC_Reln.meta.age18mo.meta.groupNLGF-meta.clusterCA3_Bok.meta.age18mo.meta.groupWT,
+#   levels = design
+# )
+# cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+# results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+# mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+# gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+# rownames(mat) <- gene_ids$external_gene_name
+# rownames(results) <- gene_ids$external_gene_name
+# Heatmap(
+#   t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+#   color,
+#   cluster_columns = FALSE,
+#   row_names_max_width = max_text_width(rownames(mat)),
+#   top_annotation = top_anno,
+#   heatmap_legend_param = list(title = "expression"),
+#   column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
+#   column_title_gp = gpar(fontsize = 15)
+# )
+# datatable_download_exp(results)
+# 
+# contrast_mat <- makeContrasts(
+#   meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF-meta.clusterCA1_Wfs1.meta.age18mo.meta.groupNLGF,
+#   levels = design
+# )
+# cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+# results <- topTable(cont_fit, 1, Inf, p.value = 0.1)
+# mat <- logcounts(sce)[which(rownames(logcounts(sce)) %in% rownames(results)), ]
+# gene_ids <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(mat), ]
+# rownames(mat) <- gene_ids$external_gene_name
+# rownames(results) <- gene_ids$external_gene_name
+# Heatmap(
+#   t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+#   color,
+#   cluster_columns = FALSE,
+#   row_names_max_width = max_text_width(rownames(mat)),
+#   top_annotation = top_anno,
+#   heatmap_legend_param = list(title = "expression"),
+#   column_title = "NLGF (18mo old, EC Reln cluster) vs WT (18mo old, CA3 Bok cluster)",
+#   column_title_gp = gpar(fontsize = 15)
+# )
+# datatable_download_exp(results)
 ```
 # References
 
