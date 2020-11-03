@@ -19,7 +19,7 @@ output:
       smooth_scroll: false
 knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(
-    "..", "..", "results", "02-analysis.html"
+    "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "02-analysis.html"
   ))})
 ---
 
@@ -126,8 +126,7 @@ genes <- Reduce(
   intersect,
   list(
     rownames(data_list[[1]]), rownames(data_list[[2]]), rownames(data_list[[3]]),
-    rownames(data_list[[4]]), rownames(data_list[[5]]), rownames(data_list[[6]]),
-    rownames(data_list[[7]]), rownames(data_list[[8]])
+    rownames(data_list[[4]])
   )
 )
 
@@ -142,15 +141,18 @@ for (i in seq_along(data_list)) {
   )
   data_list[[i]] <- data_list[[i]][genes, ]
   data_list[[i]] <- subset(data_list[[i]], idents = ident_names)
+  data_list[[i]]@assays$SCT@scale.data <-
+    GetAssayData(data_list[[i]], "scale.data", assay = "Spatial")
 }
 
 seurat <- merge(
   data_list[[1]],
   c(
-    data_list[[2]], data_list[[3]], data_list[[4]], data_list[[5]],
-    data_list[[6]], data_list[[7]], data_list[[8]]
+    data_list[[2]], data_list[[3]], data_list[[4]]
   )
 )
+paper_wgcna <- read.delim(file.path(assets_dir, "gene-sets", "pigs-wgcna.tsv"))
+seurat <- seurat[rownames(seurat) %in% paper_wgcna$Brown, ]
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) >= 10, ]
 idents <- as.factor(sub(" ", "_", seurat@active.ident))
 rm(data_list)
@@ -261,49 +263,13 @@ if (file.exists(rds) & file.exists(rds2)) {
 # ------------------------------------------------------------------------------
 
 sub_name <- "sctransform"
-seurat <- cluster_pipeline(
-  seurat, cache_dir, sub_name, protocol, vars_to_regress, parallel_override, cc = FALSE
+# seurat <- cluster_pipeline(
+#   seurat, cache_dir, sub_name, protocol, vars_to_regress, parallel_override, cc = FALSE
+# )
+seurat <- suppressWarnings(
+  SCTransform(seurat, vars.to.regress = vars_to_regress, verbose = FALSE)
 )
 seurat
-
-# # Create MDS plots to identify potential confounders and latent factors.
-# # ----------------------------------------------------------------------
-# d <- dist(t(GetAssayData(seurat, "scale.data")))
-# mds <- cmdscale(d, 2)
-# colnames(mds) <- paste0("mds_", 1:2)
-# seurat[["mds"]] <- CreateDimReducObject(mds, key = "mds_", assay = DefaultAssay(seurat))
-# rm(mds)
-# add_df <- data.frame(Embeddings(seurat, "mds"))
-# names(add_df) <- paste0("mds", seq(ncol(add_df)))
-# seurat$mds1 <- add_df$mds1
-# seurat$mds2 <- add_df$mds2
-# red_dim_plot(seurat, "umap1", "umap2", "idents", "cat")
-# red_dim_plot(seurat, "mds1", "mds2", "idents", "cat")
-# for (i in 1:length(metadata_to_plot)) {
-#   print(names(metadata_to_plot)[i])
-#   if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) + NoLegend())
-#   } else if ("no_legend" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") + NoLegend())
-#   } else if ("no_label" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]))
-#   } else {
-#     print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat"))
-#   }
-# }
-# for (i in 1:length(metadata_to_plot)) {
-#   print(names(metadata_to_plot)[i])
-#   if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i]) + NoLegend())
-#   } else if ("no_legend" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i], "cat") + NoLegend())
-#   } else if ("no_label" %in% metadata_to_plot[[i]]) {
-#     print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i]))
-#   } else {
-#     print(red_dim_plot(seurat, "mds1", "mds2", names(metadata_to_plot)[i], "cat"))
-#   }
-# }
-# # ----------------------------------------------------------------------
 
 hist(as.matrix(GetAssayData(seurat)))
 
@@ -316,7 +282,9 @@ hist(as.matrix(GetAssayData(seurat)))
 #   sce <- as.SingleCellExperiment(seurat)
 #   counts(sce) <- logcounts(sce)
 #   sce <- suppressWarnings(
-#     aggregateAcrossCells(sce, sce$groups, use_exprs_values = "counts", BPPARAM = MulticoreParam())
+#     aggregateAcrossCells(
+#       sce, sub("__([^_]*_[^_]*)$", "", colnames(seurat)),
+#       use_exprs_values = "counts", BPPARAM = MulticoreParam())
 #   )
 #   # keep <- filterByExpr(
 #   #   counts(sce), group = rep(seq(1:16), each = 2), min.count = quantile(counts(sce), 0.5),
@@ -406,8 +374,8 @@ if (file.exists(rds)) {
 # sce <- sce[ , c(5:8, 1:4)]
 # gsva <- gsva[ , c(5:8, 1:4)]
 
-sce <- sce[ , c(23:47, 1:22)]
-gsva <- gsva[ , c(23:47, 1:22)]
+# sce <- sce[ , c(23:47, 1:22)]
+# gsva <- gsva[ , c(23:47, 1:22)]
 
 # meta <- data.frame(
 #   sample = sub("^[^_]*_[^_]*_", "", colnames(sce)),
@@ -417,103 +385,165 @@ gsva <- gsva[ , c(23:47, 1:22)]
 #   age = rep(c("3mo", "18mo"), times = 2, each = 2)
 # )
 
+# meta <- data.frame(
+#   sample = sub("^[^_]*_[^_]*_", "", colnames(sce)),
+#   cluster = sub("__([^_]*_[^_]*)$", "", colnames(sce)),
+#   bio_rep = gsub("^(?:[^_]+_){2}([^_]+).*", "\\1", colnames(sce)),
+#   group = c(rep("WT", 34), rep("NLGF", length(colnames(sce)) - 34)),
+#   age = c(
+#     rep("3mo", 9), rep("18mo", 35 - 10),
+#     rep("3mo", 65 - 36), rep("18mo", length(colnames(sce)) - 63)
+#   )
+# )
+
+# meta <- data.frame(
+#   sample = sub("^[^_]*_[^_]*_", "", colnames(sce)),
+#   cluster = sub("__([^_]*_[^_]*)$", "", colnames(sce)),
+#   bio_rep = gsub("^(?:[^_]+_){2}([^_]+).*", "\\1", colnames(sce)),
+#   group = c(rep("WT", 4), rep("NLGF", length(colnames(sce)) - 4)),
+#   age = c(
+#     rep("3mo", 2), rep("18mo", 2),
+#     rep("3mo", 2), rep("18mo", 2)
+#   )
+# )
+
 meta <- data.frame(
   sample = sub("^[^_]*_[^_]*_", "", colnames(sce)),
-  cluster = sub("_([^_]*_[^_]*)$", "", colnames(sce)),
+  cluster = sub("__([^_]*_[^_]*)$", "", colnames(sce)),
   bio_rep = gsub("^(?:[^_]+_){2}([^_]+).*", "\\1", colnames(sce)),
-  group = c(rep("NLGF", 25), rep("WT", 22)),
-  age = c(
-    rep("3mo", 7), rep("18mo", 3), rep("3mo", 5), rep("18mo", 10),
-    rep("3mo", 6), rep("18mo", 3), rep("3mo", 6), rep("18mo", 7)
-  )
+  group = c(rep("WT", 4), rep("NLGF", length(colnames(sce)) - 4))
 )
 
 bio_rep_color <- hue_pal()(2)
+# top_anno <- HeatmapAnnotation(
+#   age = meta$age,
+#   group = meta$group,
+#   col = list(
+#     age = c("3mo" = bio_rep_color[2], "18mo" = bio_rep_color[1]),
+#     group = c("WT" = bio_rep_color[2], "NLGF" = bio_rep_color[1])
+#   )
+# )
 top_anno <- HeatmapAnnotation(
-  age = meta$age,
-  group = meta$group,
+  tech_rep = c(
+    "tech_rep1", "tech_rep1", "tech_rep2", "tech_rep2",
+    "tech_rep1", "tech_rep1", "tech_rep2", "tech_rep2"
+  ),
   col = list(
-    age = c("3mo" = bio_rep_color[2], "18mo" = bio_rep_color[1]),
-    group = c("WT" = bio_rep_color[2], "NLGF" = bio_rep_color[1])
+    tech_rep = c("tech_rep1" = bio_rep_color[2], "tech_rep2" = bio_rep_color[1])
   )
 )
+
+color <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 ```
 
 # Gene Set Enrichment
 
 ```{r, fig.height = 10, fig.width = 15}
-genotype_age <- factor(paste(meta$group, meta$age, sep = "_"))
-design <- model.matrix(~ 0 + genotype_age)
-colnames(design) <- levels(genotype_age)
+# genotype_age <- factor(paste(meta$group, meta$age, sep = "_"))
+design <- model.matrix(~ 0 + meta$group)
+colnames(design) <- unique(meta$group)
 fit <- lmFit(gsva, design)
 # contrast_mat <- makeContrasts(
 #   "WT_18mo-3mo" = WT_18mo-WT_3mo, "NLGF_18mo-3mo" = NLGF_18mo-NLGF_3mo,
 #   "NLGF-WT_18mo-3mo" = (NLGF_18mo-NLGF_3mo) - (WT_18mo-WT_3mo), levels = design
 # )
-contrast_mat <- makeContrasts(
-  "NLGF.WT_3mo" = NLGF_3mo-WT_3mo, "NLGF.WT_18mo" = NLGF_18mo-WT_18mo,
-  "NLGF.WT_18mo-3mo" = (NLGF_18mo-WT_18mo) - (NLGF_3mo-WT_3mo), levels = design
-)
+contrast_mat <- makeContrasts(NLGF-WT, levels = design)
 cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-results <- decideTests(cont_fit, p.value = 0.05, adjust.method = "none")
-vennDiagram(results)
+# results <- decideTests(cont_fit, p.value = 0.05, adjust.method = "none")
+# vennDiagram(results)
 ```
 
 ## NLGF vs. WT at 3mo
 
-```{r, fig.height = 30}
+```{r, fig.width = 20, fig.height = 15}
 results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
 mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
-mat <- mat[ , which(meta$age == "3mo")]
-Heatmap(mat, cluster_columns = FALSE)
+# mat <- mat[ , which(meta$age == "3mo")]
+# mat3mo <- mat
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  row_names_max_width = max_text_width(rownames(mat)),
+  column_split = c(rep("CTRL", 4), rep("NLGF", 4)),
+  heatmap_legend_param = list(title = "ssGSEA score"),
+  top_annotation = top_anno
+)
 datatable_download_exp(results)
 ```
 
 ## NLGF vs. WT at 18mo
 
-```{r, fig.height = 30}
-results <- topTable(cont_fit, 2, Inf, p.value = 0.05, adjust.method = "none")
-mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
-mat <- mat[ , which(meta$age == "18mo")]
-Heatmap(mat, cluster_columns = FALSE)
-datatable_download_exp(results)
+```{r, fig.width = 20}
+# results <- topTable(cont_fit, 2, Inf, p.value = 0.05, adjust.method = "none")
+# mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
+# mat <- mat[ , which(meta$age == "18mo")]
+# mat18mo <- mat
+# Heatmap(
+#     t(
+#     apply(
+#       mat, 1,
+#       function (x) (x - min(x)) / (max(x) - min(x))
+#     )
+#   ),
+#   color,
+#   cluster_columns = FALSE,
+#   row_names_max_width = max_text_width(rownames(mat)),
+#   column_split = c(rep("CTRL", 2), rep("NLGF", 2)),
+#   heatmap_legend_param = list(title = "scaled ssGSEA score", title_position = "leftcenter-rot")
+# )
+# datatable_download_exp(results)
+```
+
+## Overlap
+
+```{r, fig.width = 20, fig.height = 5}
+# mat <- mat[rownames(mat18mo) %in% rownames(mat3mo), ]
+# Heatmap(
+#     t(
+#     apply(
+#       mat, 1,
+#       function (x) (x - min(x)) / (max(x) - min(x))
+#     )
+#   ),
+#   color,
+#   cluster_columns = FALSE,
+#   row_names_max_width = max_text_width(rownames(mat)),
+#   column_split = c(rep("CTRL", 2), rep("NLGF", 2)),
+#   heatmap_legend_param = list(title = "scaled ssGSEA score", title_position = "leftcenter-rot")
+# )
 ```
 
 ## NLGF vs. WT interaction with Age
 
 ```{r, fig.height = 30}
-results <- topTable(cont_fit, 3, Inf, p.value = 0.05, adjust.method = "none")
-mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
-Heatmap(mat, cluster_columns = FALSE, top_annotation = top_anno)
-datatable_download_exp(results)
+# results <- topTable(cont_fit, 3, Inf, p.value = 0.05, adjust.method = "none")
+# mat <- gsva[which(rownames(gsva) %in% rownames(results)), ]
+# Heatmap(mat, cluster_columns = FALSE, top_annotation = top_anno)
+# datatable_download_exp(results)
 ```
 
 # Differential Expression
 
 ```{r, fig.height = 10, fig.width = 15}
-genotype_age <- factor(paste(meta$group, meta$age, sep = "_"))
-design <- model.matrix(~ 0 + genotype_age)
-colnames(design) <- levels(genotype_age)
+# genotype_age <- factor(paste(meta$group, meta$age, sep = "_"))
+design <- model.matrix(~ 0 + meta$group)
+colnames(design) <- unique(meta$group)
 fit <- lmFit(logcounts(sce), design)
 # contrast_mat <- makeContrasts(
 #   "WT_18mo-3mo" = WT_18mo-WT_3mo, "NLGF_18mo-3mo" = NLGF_18mo-NLGF_3mo,
 #   "NLGF-WT_18mo-3mo" = (NLGF_18mo-NLGF_3mo) - (WT_18mo-WT_3mo), levels = design
 # )
-contrast_mat <- makeContrasts(
-  "NLGF.WT_3mo" = NLGF_3mo-WT_3mo, "NLGF.WT_18mo" = NLGF_18mo-WT_18mo,
-  "NLGF.WT_18mo-3mo" = (NLGF_18mo-WT_18mo) - (NLGF_3mo-WT_3mo), levels = design
-)
-cont_fit <- eBayes(
-  contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE
-)
-results <- decideTests(cont_fit, p.value = 0.05, adjust.method = "none")
-vennDiagram(results)
+contrast_mat <- makeContrasts(NLGF-WT, levels = design)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
+# results <- decideTests(cont_fit, p.value = 0.05, adjust.method = "none")
+# vennDiagram(results)
 ```
 
 ## NLGF vs. WT at 3mo
 
-```{r, fig.height = 30}
-results <- topTable(cont_fit, 1, Inf, p.value = 0.01, adjust.method = "none")
+```{r, fig.height = 10}
+results <- topTable(cont_fit, 1, Inf, p.value = 0.05, adjust.method = "none")
 mat <- as.matrix(logcounts(sce))
 mat <- mat[rownames(mat) %in% rownames(results), ]
 rownames(results) <- gene_anno[
@@ -522,42 +552,78 @@ rownames(results) <- gene_anno[
 rownames(mat) <- gene_anno[
   which(gene_anno$ensembl_gene_id %in% rownames(mat)),
 ]$external_gene_name
-mat <- mat[ , which(meta$age == "3mo")]
-Heatmap(mat, cluster_columns = FALSE)
+Heatmap(
+  t(apply(mat, 1, function (x) (x - min(x)) / (max(x) - min(x)))),
+  color,
+  cluster_columns = FALSE,
+  column_split = c(rep("CTRL", 4), rep("NLGF", 4)),
+  heatmap_legend_param = list(title = "gene expression"),
+  top_annotation = top_anno
+)
 datatable_download_exp(results)
 ```
 
 ## NLGF vs. WT at 18mo
 
-```{r, fig.height = 30}
-results <- topTable(cont_fit, 2, Inf, p.value = 0.01, adjust.method = "none")
-mat <- as.matrix(logcounts(sce))
-mat <- mat[rownames(mat) %in% rownames(results), ]
-rownames(results) <- gene_anno[
-  which(gene_anno$ensembl_gene_id %in% rownames(results)),
-]$external_gene_name
-rownames(mat) <- gene_anno[
-  which(gene_anno$ensembl_gene_id %in% rownames(mat)),
-]$external_gene_name
-mat <- mat[ , which(meta$age == "18mo")]
-Heatmap(mat, cluster_columns = FALSE)
-datatable_download_exp(results)
+```{r, fig.height = 15}
+# results <- topTable(cont_fit, 2, Inf, p.value = 0.05, adjust.method = "none")
+# mat <- as.matrix(logcounts(sce))
+# mat <- mat[rownames(mat) %in% rownames(results), ]
+# rownames(results) <- gene_anno[
+#   which(gene_anno$ensembl_gene_id %in% rownames(results)),
+# ]$external_gene_name
+# rownames(mat) <- gene_anno[
+#   which(gene_anno$ensembl_gene_id %in% rownames(mat)),
+# ]$external_gene_name
+# mat <- mat[ , which(meta$age == "18mo")]
+# mat18mo <- mat
+# Heatmap(
+#     t(
+#     apply(
+#       mat, 1,
+#       function (x) (x - min(x)) / (max(x) - min(x))
+#     )
+#   ),
+#   color,
+#   cluster_columns = FALSE,
+#   column_split = c(rep("CTRL", 2), rep("NLGF", 2)),
+#   heatmap_legend_param = list(title = "scaled ssGSEA score", title_position = "leftcenter-rot")
+# )
+# datatable_download_exp(results)
+```
+
+## Overlap
+
+```{r}
+# mat <- mat[rownames(mat18mo) %in% rownames(mat3mo), ]
+# Heatmap(
+#     t(
+#     apply(
+#       mat, 1,
+#       function (x) (x - min(x)) / (max(x) - min(x))
+#     )
+#   ),
+#   color,
+#   cluster_columns = FALSE,
+#   column_split = c(rep("CTRL", 2), rep("NLGF", 2)),
+#   heatmap_legend_param = list(title = "scaled ssGSEA score", title_position = "leftcenter-rot")
+# )
 ```
 
 ## NLGF vs. WT interaction with Age
 
 ```{r, fig.height = 30}
-results <- topTable(cont_fit, 3, Inf, p.value = 0.01, adjust.method = "none")
-mat <- as.matrix(logcounts(sce))
-mat <- mat[rownames(mat) %in% rownames(results), ]
-rownames(results) <- gene_anno[
-  which(gene_anno$ensembl_gene_id %in% rownames(results)),
-]$external_gene_name
-rownames(mat) <- gene_anno[
-  which(gene_anno$ensembl_gene_id %in% rownames(mat)),
-]$external_gene_name
-Heatmap(mat, cluster_columns = FALSE, top_annotation = top_anno)
-datatable_download_exp(results)
+# results <- topTable(cont_fit, 3, Inf, p.value = 0.05, adjust.method = "none")
+# mat <- as.matrix(logcounts(sce))
+# mat <- mat[rownames(mat) %in% rownames(results), ]
+# rownames(results) <- gene_anno[
+#   which(gene_anno$ensembl_gene_id %in% rownames(results)),
+# ]$external_gene_name
+# rownames(mat) <- gene_anno[
+#   which(gene_anno$ensembl_gene_id %in% rownames(mat)),
+# ]$external_gene_name
+# Heatmap(mat, cluster_columns = FALSE, top_annotation = top_anno)
+# datatable_download_exp(results)
 ```
 
 # References

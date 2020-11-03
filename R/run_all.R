@@ -33,7 +33,7 @@ rmarkdown::render(
   output_file = file.path("..", "..", "results", paste0(gsub("_", "-", save_name), ".html"))
 )
 
-dir_name <- "01-EC-Reln"
+dir_name <- "02-EC-Reln"
 save_name <- "01_prep"
 rmarkdown::render(
   file.path(dir_name, paste0(save_name, ".Rmd")),

@@ -19,7 +19,7 @@ output:
       smooth_scroll: false
 knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(
-    "..", "..", "results", "01-prep.html"
+    "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "01-prep.html"
   ))})
 ---
 
@@ -266,22 +266,17 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+order <- order(GetAssayData(seurat_sub), decreasing = TRUE)
+seurat_sub <- suppressWarnings(seurat_sub[ , c(order[2], order[3])])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- rep(ident_names[i], 2)
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -428,22 +423,17 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+order <- order(GetAssayData(seurat_sub), decreasing = TRUE)
+seurat_sub <- suppressWarnings(seurat_sub[ , c(order[1], order[2])])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- rep(ident_names[i], 2)
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -590,22 +580,17 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+order <- order(GetAssayData(seurat_sub), decreasing = TRUE)
+seurat_sub <- suppressWarnings(seurat_sub[ , c(order[2], order[3])])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- rep(ident_names[i], 2)
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -752,22 +737,17 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+order <- order(GetAssayData(seurat_sub), decreasing = TRUE)
+seurat_sub <- suppressWarnings(seurat_sub[ , c(order[3], order[5])])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- rep(ident_names[i], 2)
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -914,22 +894,16 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+seurat_sub <- suppressWarnings(seurat_sub[ , which.max(GetAssayData(seurat_sub))])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- ident_names[i]
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -1076,22 +1050,16 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+seurat_sub <- suppressWarnings(seurat_sub[ , which.max(GetAssayData(seurat_sub))])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- ident_names[i]
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -1230,22 +1198,16 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[1])])
+seurat_sub <- suppressWarnings(seurat_sub[ , which.max(GetAssayData(seurat_sub))])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[i]]))
+  idents[[i]] <- ident_names[i]
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
@@ -1392,22 +1354,16 @@ SpatialPlot(
 
 ```{r}
 seurat_sub <- suppressWarnings(seurat[rownames(seurat) == "EC Reln", ])
-set.seed(1)
-heatmap <- Heatmap(
-  GetAssayData(seurat_sub), show_column_names = FALSE, cluster_rows = FALSE, column_split = 2
-)
-draw(heatmap)
-
-seurat_sub <- suppressWarnings(seurat_sub[ , unlist(column_order(heatmap)[2])])
+seurat_sub <- suppressWarnings(seurat_sub[ , which.max(GetAssayData(seurat_sub))])
 
 ident_names <- "EC Reln"
 idents <- vector("list", 2)
 for (i in 1:(length(idents) - 1)) {
-  idents[[i]] <- rep(ident_names[i], length(column_order(heatmap)[[2]])) # TODO: Fix hack.
+  idents[[i]] <- ident_names[i]
 }
 idents[[2]] <- rep("NA", length(colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)]))
 
-spot_names <- colnames(seurat_sub[ , unlist(column_order(heatmap))])
+spot_names <- colnames(seurat_sub)
 spot_names <- append(spot_names, colnames(seurat)[colnames(seurat) %notin% colnames(seurat_sub)])
 idents <- unlist(idents)
 names(idents) <- spot_names
