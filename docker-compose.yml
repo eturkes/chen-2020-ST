@@ -25,13 +25,13 @@ version: "3"
 
 services:
   all:
-    image: eturkes/chen-2020-st:R4.0.2v8
+    image: eturkes/chen-2020-st:R4.0.2v9
     volumes:
       - ".:/home/rstudio/chen-2020-ST:rw"
     command: Rscript -e "source('/home/rstudio/chen-2020-ST/R/run_all.R')"
 
   rstudio:
-    image: eturkes/chen-2020-st:R4.0.2v8
+    image: eturkes/chen-2020-st:R4.0.2v9
     volumes:
       - ".:/home/rstudio/chen-2020-ST:rw"
     ports:

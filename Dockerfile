@@ -38,12 +38,17 @@ RUN apt-get update \
         -e "install.packages('spdep')" \
         -e "install.packages('statmod')" \
         -e "install.packages('DT')" \
+        -e "install.packages('factoextra')" \
+        -e "install.packages('pals')" \
+        -e "install.packages('tm')" \
+        -e "install.packages('qgraph')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('DropletUtils')" \
         -e "BiocManager::install('ComplexHeatmap')" \
         -e "BiocManager::install('GSVA')" \
         -e "BiocManager::install('biomaRt')" \
         -e "BiocManager::install('scater')" \
+        -e "BiocManager::install('GO.db')" \
     && apt-get clean \
     && rm -Rf \
         /var/lib/apt/lists/ \
