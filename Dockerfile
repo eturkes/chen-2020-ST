@@ -29,6 +29,8 @@ RUN apt-get update \
         libgdal26 \
         libproj15 \
         libudunits2-0 \
+        libcairo2-dev \
+        libxt-dev \
     && Rscript \
         -e "install.packages('conflicted')" \
         -e "install.packages('rmarkdown')" \
