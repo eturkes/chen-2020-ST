@@ -199,7 +199,7 @@ SpatialPlot(seurat, features = "nCount_Spatial", pt.size.factor = 3.5) +
 ```{r, fig.height = 12, fig.width = 12}
 seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
 seurat <- suppressWarnings(SCTransform(seurat, "Spatial", verbose = FALSE))
-SpatialPlot(seurat, features = c("Reln", "Wfs1", "Prkcd", "Bok"), pt.size.factor = 3.5)
+SpatialPlot(seurat, features = c("Reln", "Wfs1", "Prkcd", "Ptn"), pt.size.factor = 3.5)
 ```
 
 ### Clustering

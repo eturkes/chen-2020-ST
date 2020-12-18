@@ -439,7 +439,7 @@ contrast_mat <- makeContrasts(
   EC_L2_Lat_Reln-HIP_CA1_Wfs1, HIP_CA1_Wfs1-HIP_CA3_Prkcd, levels = design
 )
 cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -479,7 +479,7 @@ contrast_mat <- makeContrasts(
   EC_L2_Lat_Reln-HIP_CA1_Wfs1, levels = design
 )
 cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -522,7 +522,7 @@ contrast_mat <- makeContrasts(
   HIP_CA1_Wfs1-HIP_CA3_Prkcd, levels = design
 )
 cont_fit <- eBayes(contrasts.fit(fit, contrast_mat))
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -639,8 +639,8 @@ fit <- lmFit(
 contrast_mat <- makeContrasts(
   EC_L2_Lat_Reln-HIP_CA1_Wfs1, HIP_CA1_Wfs1-HIP_CA3_Prkcd, levels = design
 )
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE)
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), trend = TRUE)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -677,8 +677,8 @@ contrast_mat <- makeContrasts(
   EC_L2_Lat_Reln-HIP_CA3_Prkcd, HIP_CA1_Wfs1-HIP_CA3_Prkcd,
   EC_L2_Lat_Reln-HIP_CA1_Wfs1, levels = design
 )
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE)
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), trend = TRUE)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -698,13 +698,13 @@ all <- rbind(up, down)
 if (length(all) > 0) {
   all <- all[order(-all$F), ]
 }
-# idx <- ifelse(
-#   nrow(all) < nrow(markers_list_pseudobulk_strictest[[1]]), nrow(all),
-#   nrow(markers_list_pseudobulk_strictest[[1]])
-# )
-# all <- all[1:idx, ]
-# up <- up[rownames(up) %in% rownames(all), ]
-# down <- down[rownames(down) %in% rownames(all), ]
+idx <- ifelse(
+  nrow(all) < nrow(markers_list_pseudobulk_strictest[[1]]), nrow(all),
+  nrow(markers_list_pseudobulk_strictest[[1]])
+)
+all <- all[1:idx, ]
+up <- up[rownames(up) %in% rownames(all), ]
+down <- down[rownames(down) %in% rownames(all), ]
 markers_list_pseudobulk <- list(all, up, down)
 
 # Fit a strict model on pseudo-bulk counts.
@@ -718,8 +718,8 @@ contrast_mat <- makeContrasts(
   EC_L2_Lat_Reln-HIP_CA3_Prkcd, EC_L2_Lat_Reln-HIP_CA1_Wfs1,
   HIP_CA1_Wfs1-HIP_CA3_Prkcd, levels = design
 )
-cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), robust = TRUE, trend = TRUE)
-tests <- decideTests(cont_fit, "nestedF", p.value = 5e-2)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), trend = TRUE)
+tests <- decideTests(cont_fit, "nestedF", p.value = 0.05)
 tests_up <- tests[tests[ , 1] == 1 & tests[ , 2] == 1, ]
 discard <- which(rownames(tests_up) %in% rownames(tests_up[rowSums(tests_up == -1) > 0, ]))
 if (length(discard) > 0) {
@@ -739,13 +739,13 @@ all <- rbind(up, down)
 if (length(all) > 0) {
   all <- all[order(-all$F), ]
 }
-# idx <- ifelse(
-#   nrow(all) < nrow(markers_list_pseudobulk_strictest[[1]]), nrow(all),
-#   nrow(markers_list_pseudobulk_strictest[[1]])
-# )
-# all <- all[1:idx, ]
-# up <- up[rownames(up) %in% rownames(all), ]
-# down <- down[rownames(down) %in% rownames(all), ]
+idx <- ifelse(
+  nrow(all) < nrow(markers_list_pseudobulk_strictest[[1]]), nrow(all),
+  nrow(markers_list_pseudobulk_strictest[[1]])
+)
+all <- all[1:idx, ]
+up <- up[rownames(up) %in% rownames(all), ]
+down <- down[rownames(down) %in% rownames(all), ]
 markers_list_pseudobulk_strict <- list(all, up, down)
 
 # Convert ENSEMBL IDs back to gene symbols.
@@ -906,7 +906,7 @@ Below are the exact contrasts used for each model:
 (EC_L2_Lat_EX_Reln-HIP_CA1_EX_Wfs1, HIP_CA1_EX_Wfs1-HIP_CA3_EX_Prkcd, HIP_CA3_EX_Prkcd-IN_Sst) # All must be DE.
 ```
 
-```{r, fig.width = 20, fig.height = 40}
+```{r, fig.width = 20, fig.height = 25}
 # TODO: Comments and refactoring.
 # -------------------------------
 
@@ -1151,6 +1151,9 @@ for (l in seq_along(module_names)) {
     rownames(mat)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]]
   )
 }
+# for (l in seq_along(module_names)) {
+#   module_names[[l]] <- paste0(rownames(mat)[module_names[[l]]])
+# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names),
   module = rep(seq_along(module_names), lapply(module_names, length))
@@ -1669,7 +1672,9 @@ plot(
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
     vertex.label.family = "sans",
     vertex.label.font = vertex_label_font,
-    vertex.label.cex = (all_DE_match$Freq + 1.5) * 4, 1.5,
+    vertex.label.cex = ifelse(
+      DE == "yes", (all_DE_match$Freq + 5) * 2, 5
+    ),
     vertex.frame.color = vertex_frame_color,
     vertex.label = vertex_label
 )
@@ -1685,7 +1690,112 @@ legend(
     cex = 12,
     bty = "n",
     text.col = "white",
-    inset = c(-1.15, 0)
+    inset = c(-1.11, 0)
+)
+
+DE_alt <- c(
+  rownames(markers_list_symbols_pseudobulk[[1]]),
+  rownames(markers_list_symbols_pseudobulk_strict[[1]]),
+  rownames(markers_list_symbols_pseudobulk_strictest[[1]])
+)
+
+all_DE_match <- as.data.frame(
+  table(V(graph)$name[match(DE_alt, V(graph)$name)]), stringsAsFactors = FALSE
+)
+all_DE_match_tmp <- data.frame(Var1 = V(graph)$name[V(graph)$name %notin% DE_alt], Freq = 0)
+all_DE_match <- rbind(all_DE_match, all_DE_match_tmp)
+all_DE_match <- all_DE_match[order(all_DE_match$Var1), ]
+
+module_membership_thresh <- median(
+  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+  abs(rowSums(module_membership_norm))
+)
+module_membership_thresh <- summary(
+  as.numeric(
+    (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+      abs(rowSums(module_membership_norm))
+  )
+)[5][[1]]
+membership <-
+  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+
+vertex_frame_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" & membership >= module_membership_thresh ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_frame_color <- vertex_frame_color$type
+
+vertex_label_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" & membership >= module_membership_thresh ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_label_color <- vertex_label_color$type
+
+vertex_label_font <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ 4
+    )
+  )
+vertex_label_font <- vertex_label_font$type
+
+vertex_label <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" & membership >= module_membership_thresh ~ V(graph)$name
+    )
+  )
+vertex_label <- vertex_label$type
+vertex_label[vertex_label == "NA"] <- NA
+
+png(
+  file.path("..", "..", "results", "01-all", "network.png"), 150,
+  150, "in",
+  res = 72
+)
+par(bg = "black", mar = c(5.1, 4.1, 4.1, 450.1), xpd = TRUE)
+plot(
+    graph,
+    rescale = FALSE,
+    xlim = c(-1, 1),
+    ylim = c(-1, 1),
+    layout = norm_coords(layout),
+    vertex.size = sqrt(
+      (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+      abs(rowSums(module_membership_norm))
+    ) * 12,
+    vertex.label.color = vertex_label_color,
+    edge.width = E(graph)$weight ^ 2 * 1.5,
+    vertex.shape = "pie",
+    vertex.pie = module_membership_list,
+    edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
+    vertex.label.family = "sans",
+    vertex.label.font = vertex_label_font,
+    vertex.label.cex = ifelse(
+      DE == "yes" & membership >= module_membership_thresh, (all_DE_match$Freq + 3) * 4, 3
+    ),
+    vertex.frame.color = vertex_frame_color,
+    vertex.label = vertex_label
+)
+legend(
+    "right",
+    legend = paste0(
+      "Module ", unique(hub_gene_data$module),
+      ": ", gsub("\n", " ", top_words[unique(hub_gene_data$module)])
+    ),
+    pch = 20,
+    col = module_network_colors,
+    pt.cex = 15,
+    cex = 12,
+    bty = "n",
+    text.col = "white",
+    inset = c(-1.11, 0)
 )
 ```
 
