@@ -1,5 +1,5 @@
 #    This file is part of chen-2020-ST.
-#    Copyright (C) 2020  Emir Turkes, UK DRI at UCL
+#    Copyright (C) 2020, 2024  Emir Turkes, UK DRI at UCL
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
